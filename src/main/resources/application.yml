@@ -1,0 +1,33 @@
+server:
+  # 服务端口号
+  port: 8080
+spring:
+  application:
+    name: SpringBoot4ForService
+  datasource:
+    # MYSQL数据库驱动
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 数据库地址
+    url: jdbc:mysql://192.168.31.10:3306/czw?useUnicode=true&characterEncoding=utf8&useSSL=false&autoReconnect=true&createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true
+    # 数据库用户名
+    username: root
+    # 数据库密码
+    password: czw+0701
+  jpa:
+    database: default
+    # 开发时显示sql，部署到生产环境时设为false
+    show-sql: true
+    # 使用mysql方言
+#    database-platform: org.hibernate.dialect.MySQL5Dialect
+    hibernate:
+      # 下面两个配置对应hibernate的属性
+      ddl-auto: update
+    properties:
+      hibernate:
+        # 格式化sql 语句
+        format_sql: true
+
+# LOGGING
+logging:
+  level:
+    root: info
