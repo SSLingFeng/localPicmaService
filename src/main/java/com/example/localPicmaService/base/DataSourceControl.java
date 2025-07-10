@@ -1,6 +1,7 @@
 package com.example.localPicmaService.base;
 
 import cn.hutool.json.JSON;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,12 +95,12 @@ public class DataSourceControl {
 
 
     //执行SQL
-    public static JSONObject runQuery(String sql) {
-        JSONObject result = null;
+    public static JSONArray runQuery(String sql) {
+        List<Map<String, Object>>  result = null;
         sql = dispose(sql);
         System.out.println("sql::::" + sql);
-        result = (JSONObject) execute(sql);
-        return result;
+        result = (List<Map<String, Object>>) execute(sql);
+        return new JSONArray(result);
     }
 
 
