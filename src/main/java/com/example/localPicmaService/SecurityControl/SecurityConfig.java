@@ -14,7 +14,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // 禁用 CSRF（可选）
                 .authorizeHttpRequests(auth -> auth
                         // 不需要认证的路径
-                        .requestMatchers("/public/**", "/login", "/health").permitAll()
+                        .requestMatchers("/public/**", "/login", "/health","/DataControl/**").permitAll()
 //                        .requestMatchers("/public/**", "/login", "/health","/api").permitAll()
 
                         // 需要认证的路径

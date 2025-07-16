@@ -9,10 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,7 +56,10 @@ public class DataSourceControl {
         if (trimmedSql.startsWith("select")) {
             return jdbc.queryForList(sql, args);
         } else {
-            return jdbc.update(sql, args); // 对于 insert/update/delete/create/drop 等
+            int rowsAffected = jdbc.update(sql, args);
+            List<Map<String, Object>> result = new ArrayList<>();
+            result.add((Map<String, Object>) new HashMap<>().put("1", rowsAffected));
+            return result; // 对于 insert/update/delete/create/drop 等
         }
     }
 
@@ -67,7 +67,25 @@ public class DataSourceControl {
     public static List<JSONObject> insert(String tableName, List<JSONObject> data) {
         List<JSONObject> result = new ArrayList<>();
 
+        for (JSONObject item : data) {
+            String sql = "INSERT INTO " + tableName + " (";
+            String values = " VALUES (";
+            for (String key : item.keySet()) {
+                sql += key + ",";
+                Object val = item.get(key);
 
+                // 处理 JSON 数组、对象类型统一转为字符串
+                if (val instanceof JSONArray || val instanceof JSONObject) {
+                    val = val.toString();
+                }
+                DramVariable.set(key + "123", val);
+                values += "{?" + key + "123" + "?},";
+            }
+            sql = sql.substring(0, sql.length() - 1) + ")" + values;
+            sql = sql.substring(0, sql.length() - 1) + ")";
+            runQuery(sql);
+            DramVariable.clear();
+        }
         return result;
     }
 
@@ -96,13 +114,12 @@ public class DataSourceControl {
 
     //执行SQL
     public static JSONArray runQuery(String sql) {
-        List<Map<String, Object>>  result = null;
+        List<Map<String, Object>> result = null;
         sql = dispose(sql);
         System.out.println("sql::::" + sql);
         result = (List<Map<String, Object>>) execute(sql);
         return new JSONArray(result);
     }
-
 
     //对SQL语句进行替换把{？xxx？}替换成实际值
     public static String dispose(String sql) {
@@ -139,4 +156,5 @@ public class DataSourceControl {
         String escaped = str.replace("'", "''"); // PostgreSQL 的转义方式
         return "'" + escaped + "'";
     }
+
 }
