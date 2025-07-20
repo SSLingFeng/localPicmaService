@@ -84,6 +84,17 @@
 			<artifactId>postgresql</artifactId>
 			<version>42.7.3</version> <!-- 或使用最新版本 -->
 		</dependency>
+
+		<!-- JWT  JAVA Web Token  认证模块-->
+<!--		<dependency>-->
+<!--			<groupId>io.jsonwebtoken</groupId>-->
+<!--			<artifactId>jjwt</artifactId>-->
+<!--			<version>0.9.1</version>-->
+<!--		</dependency>-->
+
+
+
+
 	</dependencies>
 
 	<build>

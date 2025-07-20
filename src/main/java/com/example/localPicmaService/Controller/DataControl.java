@@ -91,6 +91,9 @@ public class DataControl {
         }
         result.put("insert", insert);
         DataSourceControl.sync("manga_source", insert, Collections.emptyList(), Collections.emptyList());
+
+//删除原表
+        DataSourceControl.runQuery("delete from download where id <> '0'");
         return result;
     }
 }
