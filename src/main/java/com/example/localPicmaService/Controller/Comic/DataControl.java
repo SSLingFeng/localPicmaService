@@ -1,4 +1,4 @@
-package com.example.localPicmaService.Controller;
+package com.example.localPicmaService.Controller.Comic;
 
 
 import cn.hutool.json.JSONArray;
@@ -39,6 +39,17 @@ public class DataControl {
             UUID uuid = UUID.randomUUID();
             String uuidStr = uuid.toString();
             tempInsert.put("id", uuidStr);//主键ID
+
+
+            tempInsert.put("ver", 1);//数据版本
+            tempInsert.put("del_flag", 0);//是否删除
+            tempInsert.put("create_date", new Date());//数据创建时间
+            tempInsert.put("update_date", new Date());//数据更新时间
+            tempInsert.put("creator_id", "004SVLG0APRAF");//创建人ID
+            tempInsert.put("creator_name", "czw");//创建人名称
+            tempInsert.put("updator_id", "004SVLG0APRAF");//更新人ID
+            tempInsert.put("updator_name", "czw");//更新人名称
+
             tempInsert.put("type", type);//分类
             tempInsert.put("picg_id", temp.get("id"));//哔咔ID
             tempInsert.put("title", temp.get("title"));//主标题
