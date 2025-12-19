@@ -94,7 +94,7 @@ public class DataControl {
                 String tempChapter = chapters.get(j);
                 JSONObject insetTemp = new JSONObject();
                 insetTemp.put("name", tempChapter);
-                insetTemp.put("index", j);
+                insetTemp.put("index", j + 1);
                 chaptersinsert.put(insetTemp);
             }
             tempInsert.put("chapters", chaptersinsert.toString());
