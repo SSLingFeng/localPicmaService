@@ -11,7 +11,6 @@ public class localPicmaServiceApplication {
 
         SpringApplication.run(localPicmaServiceApplication.class, args);
 
-        DataSourceControl.runQuery("select * from web_user");
     }
 
 }
