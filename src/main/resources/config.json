@@ -1,3 +1,63 @@
 {
-  "path": ""
+  "path": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "",
+    "value": 10240
+  },
+  "SystemName": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "",
+    "value": 10240
+  },
+  "LogPath": {
+    "text": "",
+    "type": "Path",
+    "zh-cn": "日志文件的存储路径，只支持相对路径",
+    "value": 10240
+  },
+  "LogSize": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "单个日志文件的大小，和LogSizeType配合使用",
+    "value": 10
+  },
+  "LogSizeType": {
+    "text": "",
+    "type": "String",
+    "zh-cn": "单个日志文件的大小存储单位  KB/MB/GB 只能这三种",
+    "value": "MB"
+  },
+  "LogFileNum": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "单个线程实例的日志文件数量",
+    "value": 5
+  },
+  "path": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "",
+    "value": 10240
+  },
+  "path": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "",
+    "value": 10240
+  },
+  "path": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "",
+    "value": 10240
+  },
+  "path": {
+    "text": "",
+    "type": "int",
+    "zh-cn": "",
+    "value": 10240
+  }
 }
+

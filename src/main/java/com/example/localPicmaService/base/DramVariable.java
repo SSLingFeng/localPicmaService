@@ -1,9 +1,12 @@
 package com.example.localPicmaService.base;
 
+import org.springframework.stereotype.Service;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Service
 public class DramVariable {
     // 使用ConcurrentHashMap来保证多线程访问时的线程安全
     private static final Map<String, ThreadLocal<Map<String, Object>>> userData =
