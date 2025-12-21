@@ -11,7 +11,6 @@ import java.util.function.Consumer;
 public class CommandService {
 
     public void execute(String command, Consumer<String> onLine) {
-
         ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", command);
         pb.redirectErrorStream(true);
 

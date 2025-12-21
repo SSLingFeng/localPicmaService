@@ -16,17 +16,17 @@ public class CommandSseController {
         this.commandService = commandService;
     }
 
-    @GetMapping(value = "/cmd/ping", produces = "text/event-stream")
+    @GetMapping(value = "/api/EXcuteCommand", produces = "text/event-stream")
     public SseEmitter pingBySse() {
 
         SseEmitter emitter = new SseEmitter(0L);
-
+        String cmd = "E:\\SteamLibrary\\steamapps\\common\\ProjectZomboid\\ProjectZomboid64.bat";
+//        cmd = "ping baidu.com";
         new Thread(() -> {
             try {
-                commandService.execute(
-                        "ping baidu.com",
-                        line -> {
+                commandService.execute(cmd, line -> {
                             try {
+                                System.out.println(line);
                                 emitter.send(line);
                             } catch (IOException e) {
                                 throw new RuntimeException(e);
