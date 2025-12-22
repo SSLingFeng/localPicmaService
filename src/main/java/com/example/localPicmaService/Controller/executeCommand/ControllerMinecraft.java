@@ -40,7 +40,10 @@ public class ControllerMinecraft {
     public CommandStartResponse start(@RequestBody Map<String, Object> data) throws Exception {
 
 
-        String command = (String) data.get("command");
+//        String command = (String) data.get("command");
+        String command = "";
+        command = "ping baidu.com";
+
         String name = (String) data.get("name");
 
         String taskId = commandManager.execute(command);
@@ -50,10 +53,5 @@ public class ControllerMinecraft {
                 "",
                 "RUNNING"
         );
-//        return new CommandStartResponse(
-//                taskId,
-//                req.getName(),
-//                "RUNNING"
-//        );
     }
 }

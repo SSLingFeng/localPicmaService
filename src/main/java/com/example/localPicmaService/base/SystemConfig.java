@@ -1,11 +1,18 @@
 package com.example.localPicmaService.base;
 
 
+import jakarta.annotation.PostConstruct;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
 
-@Service
+/**
+ *@Configuration 代表底层配置
+ */
+@Configuration
+@ConfigurationProperties(prefix = "server.base")
 public class SystemConfig {
 
 
@@ -22,6 +29,11 @@ public class SystemConfig {
 
     //单个实例的日志文件数量
     public int LogFileNum;
+
+
+    @PostConstruct
+    public static void init() {
+    }
 
     /**
      * 判断当前系统是不是windows
@@ -40,21 +52,6 @@ public class SystemConfig {
     public void getConfig() {
 
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     public String getSystemName() {
