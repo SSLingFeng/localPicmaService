@@ -32,7 +32,9 @@ public class RollingLogWriter {
 
     private BufferedWriter writer;
     private Path currentLogFile;
-    private SystemConfig config;
+
+
+    private SystemConfig config = new SystemConfig();
 
     public RollingLogWriter(String name, String taskId) throws IOException {
         this.name = name;

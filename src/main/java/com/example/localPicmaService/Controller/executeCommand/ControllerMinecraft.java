@@ -46,11 +46,11 @@ public class ControllerMinecraft {
 
         String name = (String) data.get("name");
 
-        String taskId = commandManager.execute(command);
+        String taskId = commandManager.execute(name,command);
 
         return new CommandStartResponse(
                 taskId,
-                "",
+                name,
                 "RUNNING"
         );
     }

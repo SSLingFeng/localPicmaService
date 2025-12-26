@@ -10,9 +10,6 @@ public class localPicmaServiceApplication {
 
     public static void main(String[] args) {
 
-        SystemConfig.init();
-
-
         SpringApplication.run(localPicmaServiceApplication.class, args);
 
     }
