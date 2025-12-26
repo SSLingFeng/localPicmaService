@@ -3,36 +3,39 @@ package com.example.localPicmaService.base;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Service;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
 
 /**
- *@Configuration 代表底层配置
+ * @Configuration 代表底层配置
  */
-@Configuration
-@ConfigurationProperties(prefix = "server.base")
+@Component
+//@ConfigurationProperties(prefix = "server.base")
+
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class SystemConfig {
 
 
-    public String SystemName;
+    public String systemName ="localPicmaService";
 
 
     // 日志文件路径
-    public Path LogPath;
+    public Path logPath = Path.of("E:\\MC\\test");
 
     // 单日志文件大小
-    public int LogSize;
+    public int logSize = 10;
     // 单日志文件大小的存储单位   KB/MB/GB  只能说这三个类型
-    public String LogSizeType;
+    public String logSizeType = "MB";
 
     //单个实例的日志文件数量
-    public int LogFileNum;
+    public int logFileNum = 5;
 
 
     @PostConstruct
-    public static void init() {
+    public void init() {
     }
 
     /**
@@ -55,43 +58,43 @@ public class SystemConfig {
 
 
     public String getSystemName() {
-        return SystemName;
+        return systemName;
     }
 
     public void setSystemName(String systemName) {
-        SystemName = systemName;
+        this.systemName = systemName;
     }
 
     public Path getLogPath() {
-        return LogPath;
+        return logPath;
     }
 
     public void setLogPath(Path logPath) {
-        LogPath = logPath;
+        this.logPath = logPath;
     }
 
     public int getLogSize() {
-        return LogSize;
+        return logSize;
     }
 
     public void setLogSize(int logSize) {
-        LogSize = logSize;
+        this.logSize = logSize;
     }
 
     public String getLogSizeType() {
-        return LogSizeType;
+        return logSizeType;
     }
 
     public void setLogSizeType(String logSizeType) {
-        LogSizeType = logSizeType;
+        this.logSizeType = logSizeType;
     }
 
     public int getLogFileNum() {
-        return LogFileNum;
+        return logFileNum;
     }
 
     public void setLogFileNum(int logFileNum) {
-        LogFileNum = logFileNum;
+        this.logFileNum = logFileNum;
     }
 
 }
