@@ -23,7 +23,7 @@ public class SystemConfig {
 
 
     // 日志文件路径
-    public Path logPath = Path.of("E:\\MC\\test");
+    public Path logPath = Path.of("E:\\log");
 
     // 单日志文件大小
     public int logSize = 10;

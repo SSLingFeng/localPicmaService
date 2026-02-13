@@ -1,5 +1,6 @@
 package com.example.localPicmaService.Class;
 
+import cn.hutool.core.date.DateUtil;
 import com.example.localPicmaService.base.SystemConfig;
 
 import java.io.BufferedWriter;
@@ -10,6 +11,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -24,11 +26,11 @@ import java.util.List;
  */
 public class RollingLogWriter {
 
-    private  Path baseDir;
-    private  String name;
-    private  String taskId;
-    private  long maxFileSizeBytes;
-    private  int maxFileNum;
+    private Path baseDir;
+    private String name;
+    private String taskId;
+    private long maxFileSizeBytes;
+    private int maxFileNum;
 
     private BufferedWriter writer;
     private Path currentLogFile;
@@ -48,7 +50,7 @@ public class RollingLogWriter {
         // System.logPath/Command/{name-taskId}
         this.baseDir = config.getLogPath()
                 .resolve("Command")
-                .resolve(name + "-" + taskId);
+                .resolve(name + "-" + DateUtil.format(new Date(),"yyyy_MM_dd_HH-mm-ss") + "-" + taskId);
 
         Files.createDirectories(baseDir);
 
