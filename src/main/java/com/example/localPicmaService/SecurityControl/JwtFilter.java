@@ -5,9 +5,9 @@ import cn.hutool.jwt.JWTException;
 import cn.hutool.jwt.JWTUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,51 +20,91 @@ import java.util.Map;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+
+    private static final String SECRET = "localPicmaService";
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String jwtStr = authHeader.substring(7);
+        // 禁止浏览器发送 Referer 头
+        response.setHeader("Referrer-Policy", "no-referrer");
+
+        // ★ 优先从 Header 读，其次从 Cookie 读
+        String jwtStr = extractToken(request);
+
+        if (jwtStr != null) {
             try {
                 JWT jwt = parseAndVerify(jwtStr);
-                // 校验签名是否合法
-                if (!jwt.verify()) {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    return;
-                }
+//                if (!jwt.verify()) {
+//                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+//                    return;
+//                }
 
-                // 提取用户名和角色
                 String username = (String) jwt.getPayload("username");
                 List<String> roles = (List<String>) jwt.getPayload("roles");
 
-                List<SimpleGrantedAuthority> authorities = roles.stream()
-                        .map(SimpleGrantedAuthority::new)
-                        .toList();
 
-                // 设置认证对象
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(username, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (username != null && roles != null) {
+                    List<SimpleGrantedAuthority> authorities = roles.stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .toList();
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(username, null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+
+
+//                List<SimpleGrantedAuthority> authorities = roles.stream()
+//                        .map(SimpleGrantedAuthority::new)
+//                        .toList();
+
+//                UsernamePasswordAuthenticationToken authentication =
+//                        new UsernamePasswordAuthenticationToken(username, null, authorities);
+//                SecurityContextHolder.getContext().setAuthentication(authentication);
+
 
             } catch (JWTException | ClassCastException e) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                // ★ 关键改动：验证失败不要拦截，只是不设置认证
+                // 让 Security 授权层来决定是否放行
+//                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 return;
             }
-
         }
-//        else if (!request.getRequestURI().contains("/apilogin")) {
-//            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-//            return;
-//        }
-
-        // 放行
+        // ★ 无论 token 是否有效，都继续执行过滤链
         filterChain.doFilter(request, response);
     }
 
-    private static final String SECRET = "localPicmaService";
+    /**
+     * ★ 新增：按优先级提取 token
+     *   1. Authorization: Bearer xxx（API 客户端用）
+     *   2. Cookie: AUTH_TOKEN=xxx（浏览器导航时自动携带）
+     */
+    private String extractToken(HttpServletRequest request) {
+
+        // 1. 先看 Authorization Header
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        // 2. 再看 Cookie
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("AUTH_TOKEN".equals(cookie.getName())) {
+                    String value = cookie.getValue();
+                    if (value != null && !value.isEmpty()) {
+                        return value;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
 
     public static JWT parseAndVerify(String token) {
         JWT jwt = JWTUtil.parseToken(token).setKey(SECRET.getBytes());

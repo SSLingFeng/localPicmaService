@@ -1,0 +1,73 @@
+/* =============================================
+   ANIMATIONS
+   ============================================= */
+
+/* ---- Fade In Up ---- */
+.anim-fade-in-up{
+  opacity:0;
+  animation:fadeInUp .7s var(--ease) forwards;
+}
+@keyframes fadeInUp{
+  from{opacity:0;transform:translateY(28px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ---- Staggered cards ---- */
+.game-card:nth-child(1){animation-delay:.05s}
+.game-card:nth-child(2){animation-delay:.15s}
+.game-card:nth-child(3){animation-delay:.25s}
+.game-card:nth-child(4){animation-delay:.35s}
+
+/* ---- Section reveal on scroll (triggered by JS) ---- */
+.section-block{
+  opacity:0;
+  transform:translateY(30px);
+  transition:opacity .65s var(--ease), transform .65s var(--ease);
+}
+.section-block.visible{
+  opacity:1;
+  transform:translateY(0);
+}
+
+/* ---- Card hover lift (already partly in components.css) ---- */
+.el-card{
+  will-change:transform;
+}
+
+/* ---- Photo overlay fade ---- */
+.photo-overlay{
+  transition:opacity .3s var(--ease);
+}
+
+/* ---- Carousel caption ---- */
+.carousel-caption{
+  animation:fadeInUp .5s .2s var(--ease) both;
+}
+
+/* ---- Logo pulse on hover ---- */
+.logo-mark{
+  transition:text-shadow var(--dur) var(--ease);
+}
+.logo:hover .logo-mark{
+  text-shadow:0 0 18px rgba(200,149,108,.5);
+}
+
+/* ---- Hero gradient drift ---- */
+.hero-bg{
+  animation:bgDrift 12s ease-in-out infinite alternate;
+}
+@keyframes bgDrift{
+  0%  {background-position:30% 40%}
+  100%{background-position:70% 60%}
+}
+
+/* ---- Timeline item entrance ---- */
+.el-timeline-item{
+  opacity:0;
+  transform:translateX(-16px);
+  transition:opacity .5s var(--ease), transform .5s var(--ease);
+}
+.el-timeline-item.visible{
+  opacity:1;
+  transform:translateX(0);
+}

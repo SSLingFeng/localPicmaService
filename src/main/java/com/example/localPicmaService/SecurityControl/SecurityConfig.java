@@ -1,15 +1,14 @@
 package com.example.localPicmaService.SecurityControl;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
@@ -18,27 +17,32 @@ public class SecurityConfig {
     @Bean
     public static SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // 禁用 CSRF（可选）
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                                // 不需要认证的路径
-                                .requestMatchers("/public/**", "/login", "/apilogin", "/health", "/DataControl/**").permitAll()
-//                        .requestMatchers("/public/**", "/login", "/health","/api").permitAll()
-
-                                // 需要认证的路径
-                                .requestMatchers("/admin/**").hasRole("ADMIN")
-                                .requestMatchers("/user/**").authenticated()
-
-                                // 所有其他接口默认需要登录
-                                .anyRequest().authenticated()
+                        .requestMatchers(
+                                "/",
+                                "/erroe",
+                                "/login",
+                                "/publicAuth",
+                                "/static/**",
+                                "/apilogin",
+                                "/apicheck-token",
+                                "/module/login/**",
+                                "/module/auth.js",
+                                "/health").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .formLogin(Customizer.withDefaults())  // 使用默认表单登录页
-                .addFilterBefore(new JwtFilter(), UsernamePasswordAuthenticationFilter.class)
-//                .formLogin(form -> form.disable())
-//                .formLogin(form -> form
-//                        .loginPage("/login") // 你可以自定义页面，也可不写使用默认登录页
-//                        .permitAll()
-//                )
-        ;
+                // ★ 加这个，控制台会打印每个请求的认证情况
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            System.out.println(">>> 403: " + request.getMethod() + " " + request.getRequestURI());
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "未认证");
+                        })
+                )
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(new JwtFilter(), UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 

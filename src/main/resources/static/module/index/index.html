@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页 - LocalPicma</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #08060a;
+            color: #f0ece4;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 32px;
+            border-bottom: 1px solid #2a2432;
+            background: #110e14;
+        }
+        .navbar .brand {
+            font-family: 'Syne', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: #d4a24e;
+            letter-spacing: 0.05em;
+        }
+        .navbar .user-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .navbar .username {
+            font-size: 14px;
+            color: #8a8391;
+        }
+        .logout-btn {
+            padding: 8px 20px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: #08060a;
+            background: #d4a24e;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        .logout-btn:hover {
+            box-shadow: 0 4px 16px rgba(212, 162, 78, 0.25);
+            transform: translateY(-1px);
+        }
+        .logout-btn:active {
+            transform: translateY(0) scale(0.98);
+        }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
+            text-align: center;
+        }
+        .main h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+        .main h1 span {
+            color: #d4a24e;
+        }
+        .main p {
+            color: #8a8391;
+            font-size: 16px;
+            max-width: 480px;
+            line-height: 1.6;
+        }
+        .status-card {
+            margin-top: 32px;
+            padding: 20px 32px;
+            background: #1a161f;
+            border: 1px solid #2a2432;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .status-card .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+        }
+        .status-card .label {
+            color: #5a5462;
+        }
+        .status-card .value {
+            color: #f0ece4;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand">LocalPicma</div>
+        <div class="user-section">
+            <span class="username" id="displayUsername"></span>
+            <button class="logout-btn" id="logoutBtn">退出登录</button>
+        </div>
+    </nav>
+
+    <div class="main">
+        <h1>欢迎回来<span id="welcomeUsername"></span></h1>
+        <p>LocalPicma 服务已就绪，您可以开始管理您的漫画源和网站内容。</p>
+        <div class="status-card">
+            <div class="row">
+                <span class="label">服务状态</span>
+                <span class="value">运行中</span>
+            </div>
+            <div class="row">
+                <span class="label">用户</span>
+                <span class="value" id="cardUsername">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var token = localStorage.getItem('token');
+            var username = localStorage.getItem('username');
+
+            if (!token) {
+                window.location.href = '/module/login/login.html';
+                return;
+            }
+
+            document.getElementById('displayUsername').textContent = username;
+            document.getElementById('welcomeUsername').textContent = username;
+            document.getElementById('cardUsername').textContent = username;
+
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('username');
+                localStorage.removeItem('rememberMe');
+                window.location.href = '/module/login/login.html';
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人博客 · Home</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Nunito+Sans:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;600;700&display=swap"
+          rel="stylesheet">
+
+    <!-- Element UI -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui@2.15.14/lib/theme-chalk/index.css">
+
+
+    <script src="/publicAuth"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+<div id="app" v-cloak>
+
+    <!-- ============ NAVIGATION ============ -->
+    <header class="site-header" :class="{ scrolled: isScrolled }">
+        <div class="header-inner">
+            <a class="logo" href="#" @click.prevent="scrollTo('home')">
+                <span class="logo-mark">N.</span>
+                <span class="logo-text">nocan</span>
+            </a>
+            <el-menu
+                    :default-active="activeSection"
+                    mode="horizontal"
+                    @select="handleNav"
+                    background-color="transparent"
+                    text-color="var(--text-secondary)"
+                    active-text-color="var(--accent)"
+                    class="nav-menu"
+            >
+                <el-menu-item index="home">首页</el-menu-item>
+                <el-menu-item index="gaming">
+                    <i class="el-icon-s-platform"></i> 游戏
+                </el-menu-item>
+                <el-menu-item index="photo">
+                    <i class="el-icon-camera"></i> 摄影
+                </el-menu-item>
+                <el-menu-item index="life">
+                    <i class="el-icon-coffee-cup"></i> 生活
+                </el-menu-item>
+                <el-menu-item index="work">
+                    <i class="el-icon-suitcase"></i> 工作
+                </el-menu-item>
+            </el-menu>
+        </div>
+    </header>
+
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="home">
+        <div class="hero-bg"></div>
+        <div class="hero-content anim-fade-in-up">
+            <p class="hero-greeting">Hello, I'm</p>
+            <h1 class="hero-name">{{ author.name }}</h1>
+            <p class="hero-tagline">{{ author.tagline }}</p>
+            <el-divider class="hero-divider">
+                <i class="el-icon-star-on" style="color:var(--accent)"></i>
+            </el-divider>
+            <p class="hero-bio">{{ author.bio }}</p>
+        </div>
+    </section>
+
+    <!-- ============ MAIN CONTENT ============ -->
+    <main class="main-content">
+
+        <!-- Row 1 : Gaming (wider) + Photography -->
+        <el-row :gutter="28" class="content-row">
+            <!-- ---- GAMING ---- -->
+            <el-col :xs="24" :lg="15">
+                <section class="section-block" id="gaming">
+                    <div class="section-header">
+                        <div class="section-title-group">
+                            <span class="section-num">01</span>
+                            <div>
+                                <h2 class="section-title">游戏日志</h2>
+                                <span class="section-sub">Game Journal</span>
+                            </div>
+                        </div>
+                        <el-button type="text" class="view-all-btn">
+                            查看全部 <i class="el-icon-right"></i>
+                        </el-button>
+                    </div>
+
+                    <div v-loading="loading.gaming"
+                         element-loading-background="rgba(10,10,10,0.85)"
+                         element-loading-text="加载中…"
+                         class="section-body">
+
+                        <el-skeleton :rows="6" animated :loading="loading.gaming">
+                            <template slot="template">
+                                <el-row :gutter="16">
+                                    <el-col :span="8" v-for="n in 3" :key="n" style="margin-bottom:16px">
+                                        <el-skeleton-item variant="image"
+                                                          style="width:100%;height:180px;border-radius:8px"/>
+                                        <div style="padding:14px">
+                                            <el-skeleton-item variant="h3" style="width:60%"/>
+                                            <el-skeleton-item variant="text" style="width:100%;margin-top:8px"/>
+                                            <el-skeleton-item variant="text" style="width:80%"/>
+                                        </div>
+                                    </el-col>
+                                </el-row>
+                            </template>
+
+                            <template>
+                                <el-row :gutter="16">
+                                    <el-col :xs="24" :sm="12" :md="8"
+                                            v-for="game in games" :key="game.id">
+                                        <el-card shadow="hover" :body-style="{ padding: '0' }"
+                                                 class="game-card anim-fade-in-up">
+                                            <div class="game-cover">
+                                                <el-image :src="game.cover" fit="cover" lazy>
+                                                    <div slot="error" class="img-slot"><i
+                                                            class="el-icon-picture-outline"></i></div>
+                                                    <div slot="placeholder" class="img-slot"><i
+                                                            class="el-icon-loading"></i></div>
+                                                </el-image>
+                                                <div class="game-platform-badge">
+                                                    <el-tag v-for="p in game.platforms" :key="p"
+                                                            size="mini" effect="dark" type="warning">{{ p }}
+                                                    </el-tag>
+                                                </div>
+                                            </div>
+                                            <div class="game-info">
+                                                <h3 class="game-title">{{ game.title }}</h3>
+                                                <div class="game-meta">
+                                                    <el-rate v-model="game.rating" disabled
+                                                             :colors="['#c8956c','#c8956c','#c8956c']"
+                                                             :max="5" :allow-half="true"></el-rate>
+                                                    <span class="game-time"><i
+                                                            class="el-icon-time"></i> {{ game.playtime }}</span>
+                                                </div>
+                                                <p class="game-desc">{{ game.description }}</p>
+                                                <div class="game-tags">
+                                                    <el-tag v-for="t in game.tags" :key="t"
+                                                            size="small" type="info" effect="plain">{{ t }}
+                                                    </el-tag>
+                                                </div>
+                                            </div>
+                                        </el-card>
+                                    </el-col>
+                                </el-row>
+                                <el-empty v-if="!loading.gaming && games.length===0"
+                                          description="暂无游戏记录"
+                                          image="https://element.eleme.cn/2.0/static/empty.6ea12a5.png">
+                                </el-empty>
+                            </template>
+                        </el-skeleton>
+                    </div>
+                </section>
+            </el-col>
+
+            <!-- ---- PHOTOGRAPHY ---- -->
+            <el-col :xs="24" :lg="9">
+                <section class="section-block" id="photo">
+                    <div class="section-header">
+                        <div class="section-title-group">
+                            <span class="section-num">02</span>
+                            <div>
+                                <h2 class="section-title">光影视界</h2>
+                                <span class="section-sub">Photography</span>
+                            </div>
+                        </div>
+                        <el-button type="text" class="view-all-btn">
+                            图库 <i class="el-icon-right"></i>
+                        </el-button>
+                    </div>
+
+                    <div v-loading="loading.photo"
+                         element-loading-background="rgba(10,10,10,0.85)"
+                         class="section-body">
+
+                        <!-- Carousel -->
+                        <el-carousel :interval="6000" height="260px"
+                                     indicator-position="outside" class="photo-carousel"
+                                     v-if="featuredPhotos.length">
+                            <el-carousel-item v-for="p in featuredPhotos" :key="p.id">
+                                <el-image :src="p.url" fit="cover" class="carousel-img">
+                                    <div slot="error" class="img-slot"><i class="el-icon-picture-outline"></i></div>
+                                </el-image>
+                                <div class="carousel-caption">
+                                    <h4>{{ p.title }}</h4>
+                                    <p><i class="el-icon-location"></i> {{ p.location }}</p>
+                                </div>
+                            </el-carousel-item>
+                        </el-carousel>
+
+                        <!-- Grid -->
+                        <div class="photo-grid" v-if="recentPhotos.length">
+                            <div class="photo-grid-item" v-for="p in recentPhotos" :key="p.id">
+                                <el-image :src="p.url" fit="cover"
+                                          :preview-src-list="[p.url]" lazy>
+                                    <div slot="error" class="img-slot"><i class="el-icon-picture-outline"></i></div>
+                                </el-image>
+                                <div class="photo-overlay">
+                                    <el-tooltip :content="p.location" placement="top">
+                                        <span><i class="el-icon-location-outline"></i> {{ p.location }}</span>
+                                    </el-tooltip>
+                                </div>
+                            </div>
+                        </div>
+
+                        <el-empty v-if="!loading.photo && featuredPhotos.length===0"
+                                  description="暂无摄影作品"></el-empty>
+                    </div>
+                </section>
+            </el-col>
+        </el-row>
+
+        <!-- Row 2 : Life + Work -->
+        <el-row :gutter="28" class="content-row" style="margin-top:28px">
+            <!-- ---- LIFE ---- -->
+            <el-col :xs="24" :lg="12">
+                <section class="section-block" id="life">
+                    <div class="section-header">
+                        <div class="section-title-group">
+                            <span class="section-num">03</span>
+                            <div>
+                                <h2 class="section-title">生活碎片</h2>
+                                <span class="section-sub">Life Fragments</span>
+                            </div>
+                        </div>
+                        <el-badge :value="lifePosts.length" :max="99" type="warning">
+                            <el-button type="text" class="view-all-btn">全部动态</el-button>
+                        </el-badge>
+                    </div>
+
+                    <div v-loading="loading.life"
+                         element-loading-background="rgba(10,10,10,0.85)"
+                         class="section-body">
+
+                        <el-timeline v-if="lifePosts.length">
+                            <el-timeline-item
+                                    v-for="item in lifePosts" :key="item.id"
+                                    :timestamp="item.date" placement="top"
+                                    :color="item.color || '#c8956c'"
+                                    :size="item.important ? 'large' : 'normal'">
+                                <el-card shadow="hover" class="life-card">
+                                    <div class="life-card-head">
+                                        <el-avatar :size="32" :src="item.avatar" icon="el-icon-user"></el-avatar>
+                                        <div class="life-card-meta">
+                                            <h4>{{ item.title }}</h4>
+                                            <el-tag :type="item.tagType" size="mini" effect="plain">{{ item.category
+                                                }}
+                                            </el-tag>
+                                        </div>
+                                    </div>
+                                    <p class="life-card-body">{{ item.content }}</p>
+                                    <div class="life-card-imgs" v-if="item.images && item.images.length">
+                                        <el-image v-for="(img,idx) in item.images.slice(0,3)" :key="idx"
+                                                  :src="img" fit="cover"
+                                                  :preview-src-list="item.images"
+                                                  class="life-img"></el-image>
+                                    </div>
+                                </el-card>
+                            </el-timeline-item>
+                        </el-timeline>
+
+                        <el-empty v-if="!loading.life && lifePosts.length===0"
+                                  description="暂无生活动态"></el-empty>
+                    </div>
+                </section>
+            </el-col>
+
+            <!-- ---- WORK ---- -->
+            <el-col :xs="24" :lg="12">
+                <section class="section-block" id="work">
+                    <div class="section-header">
+                        <div class="section-title-group">
+                            <span class="section-num">04</span>
+                            <div>
+                                <h2 class="section-title">工作轨迹</h2>
+                                <span class="section-sub">Work &amp; Projects</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-loading="loading.work"
+                         element-loading-background="rgba(10,10,10,0.85)"
+                         class="section-body">
+
+                        <el-collapse v-model="activeProject" accordion v-if="projects.length">
+                            <el-collapse-item v-for="proj in projects" :key="proj.id" :name="proj.id">
+                                <template slot="title">
+                                    <div class="work-collapse-title">
+                                        <el-badge :type="proj.statusType" is-dot></el-badge>
+                                        <span class="work-name">{{ proj.name }}</span>
+                                        <el-tag size="mini" :type="proj.statusType" effect="dark">{{ proj.status }}
+                                        </el-tag>
+                                    </div>
+                                </template>
+                                <el-card shadow="never" class="work-detail-card">
+                                    <p class="work-desc">{{ proj.description }}</p>
+                                    <div class="work-progress">
+                                        <div class="progress-label">
+                                            <span>完成进度</span><span>{{ proj.progress }}%</span>
+                                        </div>
+                                        <el-progress :percentage="proj.progress"
+                                                     :color="proj.progressColor || '#c8956c'"
+                                                     :show-text="false" :stroke-width="6"></el-progress>
+                                    </div>
+                                    <div class="work-techs">
+                                        <el-tag v-for="t in proj.techStack" :key="t"
+                                                size="small" effect="plain" class="tech-tag">{{ t }}
+                                        </el-tag>
+                                    </div>
+                                    <div class="work-footer">
+                                        <span class="work-date"><i class="el-icon-date"></i> {{ proj.dateRange }}</span>
+                                        <el-button v-if="proj.link" type="text" size="small">
+                                            查看项目 <i class="el-icon-right"></i>
+                                        </el-button>
+                                    </div>
+                                </el-card>
+                            </el-collapse-item>
+                        </el-collapse>
+
+                        <!-- Card style alternative -->
+                        <div class="work-card-list" v-if="projects.length">
+                            <el-card v-for="proj in projects" :key="'c'+proj.id"
+                                     shadow="hover" class="work-card">
+                                <div class="work-card-top">
+                                    <div>
+                                        <div class="work-card-status">
+                                            <el-badge :type="proj.statusType" is-dot></el-badge>
+                                            <span>{{ proj.status }}</span>
+                                        </div>
+                                        <h3 class="work-card-name">{{ proj.name }}</h3>
+                                        <p class="work-desc">{{ proj.description }}</p>
+                                    </div>
+                                </div>
+                                <div class="work-progress">
+                                    <div class="progress-label">
+                                        <span>进度</span><span>{{ proj.progress }}%</span>
+                                    </div>
+                                    <el-progress :percentage="proj.progress"
+                                                 :color="proj.progressColor || '#c8956c'"
+                                                 :show-text="false" :stroke-width="6"></el-progress>
+                                </div>
+                                <div class="work-techs">
+                                    <el-tag v-for="t in proj.techStack" :key="t"
+                                            size="small" effect="plain" class="tech-tag">{{ t }}
+                                    </el-tag>
+                                </div>
+                                <div class="work-footer">
+                                    <span class="work-date"><i class="el-icon-date"></i> {{ proj.dateRange }}</span>
+                                    <el-button v-if="proj.link" type="text" size="small">
+                                        查看 <i class="el-icon-right"></i>
+                                    </el-button>
+                                </div>
+                            </el-card>
+                        </div>
+
+                        <el-empty v-if="!loading.work && projects.length===0"
+                                  description="暂无工作项目"></el-empty>
+                    </div>
+                </section>
+            </el-col>
+        </el-row>
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="site-footer">
+        <el-divider><i class="el-icon-more-outline" style="color:var(--text-muted)"></i></el-divider>
+        <div class="footer-inner">
+            <p class="footer-copy">&copy; {{ year }} {{ author.name }} · Crafted with Vue &amp; Element UI</p>
+            <div class="footer-links">
+                <el-tooltip content="GitHub" placement="top"><a href="#"><i class="el-icon-s-platform"></i></a>
+                </el-tooltip>
+                <el-tooltip content="邮箱" placement="top"><a href="#"><i class="el-icon-message"></i></a></el-tooltip>
+                <el-tooltip content="RSS" placement="top"><a href="#"><i class="el-icon-discover"></i></a></el-tooltip>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Back To Top -->
+    <el-backtop :bottom="40" :right="40" :visibility-height="300">
+        <div class="backtop-btn"><i class="el-icon-arrow-up"></i></div>
+    </el-backtop>
+
+</div>
+
+<!-- ============ SCRIPTS ============ -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.min.js"></script>
+<script src="https://unpkg.com/element-ui@2.15.14/lib/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
