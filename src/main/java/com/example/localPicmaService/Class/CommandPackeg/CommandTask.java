@@ -42,6 +42,7 @@ public class CommandTask {
     private volatile TaskStatus status;
 
     public CommandTask(
+            String name,
             String taskId,
             String command,
             Path logFile,
@@ -49,6 +50,7 @@ public class CommandTask {
     ) {
         this.taskId = taskId;
         this.command = command;
+        this.name = name;
         this.logFile = logFile;
         this.executor = executor;
         this.status = TaskStatus.CREATED;
@@ -77,6 +79,10 @@ public class CommandTask {
                         StandardCharsets.UTF_8
                 )
         );
+         //先写入用户输入到日志
+            if ( logWriter != null) {
+                logWriter.writeLine("[INPUT] : " + command);
+            }
 
         this.status = TaskStatus.RUNNING;
     }
@@ -94,6 +100,7 @@ public class CommandTask {
             throw new IllegalStateException("Process is not running");
         }
         try {
+
             inputWriter.write(commandLine);
             inputWriter.newLine(); // ⬅️ 非常重要，相当于敲 Enter
             inputWriter.flush();

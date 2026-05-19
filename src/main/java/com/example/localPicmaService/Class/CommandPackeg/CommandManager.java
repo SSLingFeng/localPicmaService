@@ -60,7 +60,7 @@ public class CommandManager {
      * @return taskId
      * 业务系统用于后续查询 / 停止 / 读取日志
      */
-    public String execute(String command) throws Exception {
+    public String execute(String name, String command) throws Exception {
         String taskId = UUID.randomUUID().toString();
 
 
@@ -70,7 +70,7 @@ public class CommandManager {
 
 
         CommandTask task = new CommandTask(
-                taskId, command, logFile, executor
+                name, taskId, command, logFile, executor
         );
 
         task.start();

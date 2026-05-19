@@ -45,7 +45,7 @@ public class LinuxCommandExecutor implements CommandExecutor {
                 } catch (IOException ignored) {}
             }
         }, "cmd-log-writer").start();
-
+        logWriter.writeLine(command);
         return process;
     }
 

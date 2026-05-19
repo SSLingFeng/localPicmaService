@@ -2,12 +2,14 @@ package com.example.localPicmaService.Controller;
 
 import com.example.localPicmaService.Class.CommandService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 
 @RestController
+@RequestMapping("/api/EXcuteCommand/test")
 public class CommandSseController {
 
     private final CommandService commandService;

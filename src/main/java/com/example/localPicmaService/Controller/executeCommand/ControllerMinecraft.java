@@ -4,6 +4,7 @@ package com.example.localPicmaService.Controller.executeCommand;
 import com.example.localPicmaService.Class.CommandPackeg.Class.CommandStartRequest;
 import com.example.localPicmaService.Class.CommandPackeg.Class.CommandStartResponse;
 import com.example.localPicmaService.Class.CommandPackeg.CommandManager;
+import com.example.localPicmaService.Class.ZMessage;
 import com.example.localPicmaService.base.SystemConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,20 +41,44 @@ public class ControllerMinecraft {
     public CommandStartResponse start(@RequestBody Map<String, Object> data) throws Exception {
 
 
-        String command = (String) data.get("command");
+//        String command = (String) data.get("command");
+        String command = "";
+        command = "ping baidu.com";
+
         String name = (String) data.get("name");
 
-        String taskId = commandManager.execute(command);
+        String taskId = commandManager.execute(name, command);
 
         return new CommandStartResponse(
                 taskId,
-                "",
+                name,
                 "RUNNING"
         );
-//        return new CommandStartResponse(
-//                taskId,
-//                req.getName(),
-//                "RUNNING"
-//        );
+    }
+
+    @PostMapping("/stop")
+    public ZMessage stop(@RequestBody Map<String, Object> data) throws Exception {
+        ZMessage zmessage = new ZMessage();
+
+
+        //        String command = (String) data.get("command");
+        String command = "";
+        command = "ping baidu.com";
+
+        String name = (String) data.get("name");
+        String taskId = (String) data.get("taskId");
+
+        if (taskId.isEmpty()) {
+            zmessage.setfail("任务ID不能为空");
+            return zmessage;
+        }
+        try {
+            commandManager.stop(taskId);
+            zmessage.setSucc("成功");
+        } catch (Exception e) {
+            zmessage.setfail("失败" + e.getMessage());
+        }
+        return zmessage;
+
     }
 }
