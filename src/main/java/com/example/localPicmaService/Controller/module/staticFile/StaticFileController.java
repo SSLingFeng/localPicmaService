@@ -4,11 +4,17 @@ import cn.hutool.jwt.JWT;
 import com.example.localPicmaService.SecurityControl.JwtFilter;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.util.Map;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Controller
 @RequestMapping("/static")
@@ -16,38 +22,34 @@ public class StaticFileController {
 
 
     @GetMapping("/logincss")
-    public String login() {
-        return "forward:/module/login/login.css";
+    public void login(HttpServletResponse response) throws IOException {
+        sendFile("/module/login/login.css", response);
     }
 
     @GetMapping("/homepagebasecss")
-    public String homepagebasecss() {
-        return "module/HomePage/base.css";
+    public void homepagebasecss(HttpServletResponse response) throws IOException {
+        sendFile("/module/HomePage/base.css", response);
     }
 
     @GetMapping("/homepagelayoutcss")
-    public String homepagelayoutcss() {
-        return "module/HomePage/layout.css";
+    public void homepagelayoutcss(HttpServletResponse response) throws IOException {
+        sendFile("/module/HomePage/layout.css", response);
     }
 
     @GetMapping("/homepagecomponentscss")
-    public String homepagecomponentscss() {
-        return "module/HomePage/components.css";
+    public void homepagecomponentscss(HttpServletResponse response) throws IOException {
+        sendFile("/module/HomePage/components.css", response);
     }
 
-    @GetMapping("/homepageanimationscss")
-    public String homepageanimationscss() {
-        return "module/HomePage/animations.css";
-    }
 
     @GetMapping("/homepageapijs")
-    public String homepageapijs() {
-        return "module/HomePage/api.js";
+    public void homepageapijs(HttpServletResponse response) throws IOException {
+        sendFile("/module/HomePage/api.js", response);
     }
 
     @GetMapping("/homepageappjs")
-    public String homepageappcss() {
-        return "module/HomePage/app.js";
+    public void homepageappjs(HttpServletResponse response) throws IOException {
+        sendFile("/module/HomePage/app.js", response);
     }
 
     @GetMapping("/")
@@ -58,16 +60,12 @@ public class StaticFileController {
             try {
                 JWT jwt = JwtFilter.parseAndVerify(token);
                 if (jwt.verify()) {
-                    return "forward:/module/Home/homePage.html";  // 已登录 → 首页
+                    return "forward:/module/HomePage/homePage.html";  // 已登录 → 首页
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         return "redirect:/login";              // 未登录 → 登录页
-    }
-
-    @GetMapping("/home")
-    public String home() {
-        return "forward:/module/Home/homePage.html";
     }
 
     // 复用 JwtFilter 的读取逻辑
@@ -86,6 +84,18 @@ public class StaticFileController {
         return null;
     }
 
+    private void sendFile(String path, HttpServletResponse response) throws IOException {
+        Resource resource = new ClassPathResource("static" + path);
+        if (!resource.exists()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        String contentType = Files.probeContentType(Path.of(resource.getURI()));
+        response.setContentType(contentType != null ? contentType : "application/octet-stream");
+        try (InputStream in = resource.getInputStream()) {
+            in.transferTo(response.getOutputStream());
+        }
+    }
 
 
 }

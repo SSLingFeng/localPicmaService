@@ -35,7 +35,7 @@ public class PageController {
             try {
                 JWT jwt = JwtFilter.parseAndVerify(token);
                 if (jwt.verify()) {
-                    return "forward:/module/Home/homePage.html";  // 已登录 → 首页
+                    return "forward:/module/HomePage/homePage.html";  // 已登录 → 首页
                 }
             } catch (Exception ignored) {}
         }
@@ -58,6 +58,10 @@ public class PageController {
         return null;
     }
 
+    @GetMapping("/home")
+    public String home() {
+        return "forward:/module/HomePage/homePage.html";
+    }
 
 //    private void sendFile(String path, HttpServletResponse response) throws IOException {
 //        Resource resource = new ClassPathResource("static" + path);

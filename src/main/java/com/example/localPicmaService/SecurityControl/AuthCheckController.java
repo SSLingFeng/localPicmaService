@@ -2,6 +2,8 @@ package com.example.localPicmaService.SecurityControl;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -12,15 +14,17 @@ public class AuthCheckController {
 
     @GetMapping("/apicheck-token")
     public ResponseEntity<?> checkToken(HttpServletRequest request) {
-        // JwtFilter 已经把认证信息放进了 request attribute
-        // 如果到这里说明 token 有效
-        String username = (String) request.getAttribute("authenticatedUser");
-        if (username != null) {
+        // ★ 从 SecurityContext 读取（JwtFilter 验证成功后写入的）
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth != null && auth.isAuthenticated()
+                && !"anonymousUser".equals(auth.getPrincipal())) {
             return ResponseEntity.ok(Map.of(
                     "valid", true,
-                    "username", username
+                    "username", auth.getName()
             ));
         }
+
         return ResponseEntity.status(401).body(Map.of(
                 "valid", false
         ));

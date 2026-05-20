@@ -18,7 +18,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-@Component
 public class JwtFilter extends OncePerRequestFilter {
 
     private static final String SECRET = "localPicmaService";
@@ -28,11 +27,19 @@ public class JwtFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        // ★ 优先从 Header 读，其次从 Cookie 读
+        String jwtStr = extractToken(request);
+        // ★ 最开头加这行，确认 filter 是否执行
+        System.out.println(">>> JwtFilter 执行: " + request.getMethod() + " " + request.getRequestURI());
+
+        System.out.println(">>> Token 提取: " + (jwtStr != null ? "成功 [" + jwtStr.substring(0, 20) + "...]" : "无"));
+
+
+
         // 禁止浏览器发送 Referer 头
         response.setHeader("Referrer-Policy", "no-referrer");
 
-        // ★ 优先从 Header 读，其次从 Cookie 读
-        String jwtStr = extractToken(request);
+
 
         if (jwtStr != null) {
             try {
@@ -41,15 +48,18 @@ public class JwtFilter extends OncePerRequestFilter {
 //                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 //                    return;
 //                }
-
+                boolean verified = jwt.verify();
+                System.out.println(">>> 签名验证: " + verified);
                 String username = (String) jwt.getPayload("username");
                 List<String> roles = (List<String>) jwt.getPayload("roles");
+
 
 
                 if (username != null && roles != null) {
                     List<SimpleGrantedAuthority> authorities = roles.stream()
                             .map(SimpleGrantedAuthority::new)
                             .toList();
+                    System.out.println(">>> 认证成功: " + username + " " + roles);
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(username, null, authorities);
@@ -67,6 +77,9 @@ public class JwtFilter extends OncePerRequestFilter {
 
 
             } catch (JWTException | ClassCastException e) {
+
+
+                System.out.println(">>> Token 异常: " + e.getMessage());
                 // ★ 关键改动：验证失败不要拦截，只是不设置认证
                 // 让 Security 授权层来决定是否放行
 //                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

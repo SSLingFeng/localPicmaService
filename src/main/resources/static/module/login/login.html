@@ -123,6 +123,12 @@
         var rememberMe = document.getElementById('rememberMe');
         var submitBtn = document.getElementById('submitBtn');
 
+        // ★ 恢复按钮状态的函数
+        function resetBtn() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '登 录';
+        }
+
         passwordToggle.addEventListener('click', function () {
             var isPassword = passwordInput.type === 'password';
             passwordInput.type = isPassword ? 'text' : 'password';
@@ -135,62 +141,52 @@
             var username = usernameInput.value.trim();
             var password = passwordInput.value;
 
-            if (!username) {
-                alert('请输入用户名');
-                usernameInput.focus();
-                return;
-            }
-            if (!password) {
-                alert('请输入密码');
-                passwordInput.focus();
-                return;
-            }
+            if (!username) { alert('请输入用户名'); usernameInput.focus(); return; }
+            if (!password) { alert('请输入密码'); passwordInput.focus(); return; }
 
             submitBtn.disabled = true;
             submitBtn.textContent = '登录中...';
 
             fetch('/apilogin', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name: username, password: password})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: username, password: password })
             })
                 .then(function (response) {
                     return response.json();
                 })
                 .then(function (data) {
-                    if (data.token) {
-                        // ★ 用 Auth 统一管理
-                        Auth.setAuth(data.token, data.username);
-                        // 2. 再次向后端确认 token 确实有效
-                        return fetch('/apicheck-token', {
-                            headers: { 'Authorization': 'Bearer ' + data.token }
-                        });
+                    if (!data.token) {
+                        // ★ 登录失败，直接抛出错误，进入 catch
+                        throw new Error(data.error || '登录失败，请检查用户名和密码');
+                    }
 
-                        if (rememberMe.checked) {
-                            localStorage.setItem('rememberMe', 'true');
-                        } else {
-                            localStorage.removeItem('rememberMe');
-                        }
+                    // 存储认证信息
+                    Auth.setAuth(data.token, data.username);
 
-                        // ★ 跳转到「之前想去的页面」或默认首页
+                    if (rememberMe.checked) {
+                        localStorage.setItem('rememberMe', 'true');
+                    } else {
+                        localStorage.removeItem('rememberMe');
+                    }
+
+                    // ★ 向后端确认 token 有效
+                    return fetch('/apicheck-token', {
+                        headers: { 'Authorization': 'Bearer ' + data.token }
+                    });
+                })
+                .then(function (res) {
+                    if (res && res.ok) {
+                        // ★ 双重确认成功，跳转
                         window.location.href = Auth.getRedirectUrl();
                     } else {
-                        alert(data.error || '登录失败，请检查用户名和密码');
-                        submitBtn.disabled = false;
-                        submitBtn.textContent = '登 录';
+                        throw new Error('登录异常，请重试');
                     }
-                }).then(function(res) {
-                if (res.ok) {
-                    // 3. 双重确认成功，跳转
-                    window.location.href = Auth.getRedirectUrl();
-                } else {
-                    alert('登录异常，请重试');
-                }
-            })
-                .catch(function () {
-                    alert('网络错误，请稍后重试');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = '登 录';
+                })
+                .catch(function (err) {
+                    // ★ 任何错误都恢复按钮
+                    alert(err.message || '网络错误，请稍后重试');
+                    resetBtn();
                 });
         });
     })();

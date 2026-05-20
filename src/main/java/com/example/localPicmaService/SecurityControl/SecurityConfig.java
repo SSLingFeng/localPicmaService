@@ -14,6 +14,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
 
+    // ★ 新增：把实例存为字段，同一个实例用两次
+    private static final JwtFilter jwtFilter = new JwtFilter();
+
     @Bean
     public static SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -21,8 +24,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
-                                "/erroe",
+                                "/erreo",
                                 "/login",
+
                                 "/publicAuth",
                                 "/static/**",
                                 "/apilogin",
@@ -41,7 +45,7 @@ public class SecurityConfig {
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(new JwtFilter(), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -55,6 +59,12 @@ public class SecurityConfig {
                 .userDetailsService(customUserDetailsService)
                 .passwordEncoder(PasswordConfig.passwordEncoder());
         return builder.build();
+    }
+
+    // ★ 新增：把 JwtFilter 注册为 Bean，这样可以注入到 securityFilterChain
+    @Bean
+    public JwtFilter jwtFilter() {
+        return jwtFilter;
     }
 
     @Autowired
