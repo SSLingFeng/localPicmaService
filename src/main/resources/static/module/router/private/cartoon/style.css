@@ -1,0 +1,340 @@
+/* ================================================================
+   CSS Variables
+   ================================================================ */
+:root {
+    --bg:           #090912;
+    --surface:      #111122;
+    --card:         #171730;
+    --card-hover:   #1f1f40;
+    --accent:       #d4a853;
+    --accent-light: #e8c978;
+    --accent-glow:  rgba(212,168,83,.15);
+    --text:         #e8e4dc;
+    --text-muted:   #6b6580;
+    --border:       #252545;
+    --radius:       8px;
+    --radius-sm:    4px;
+}
+
+/* ================================================================
+   Reset & Base
+   ================================================================ */
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+[v-cloak] { display:none!important; }
+
+body {
+    font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+    "Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Helvetica,Arial,sans-serif;
+    background:
+            radial-gradient(ellipse at 15% 50%, rgba(30,20,60,.35) 0%, transparent 55%),
+            radial-gradient(ellipse at 85% 15%, rgba(20,30,50,.25) 0%, transparent 50%),
+            var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* noise grain */
+body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events:none; z-index:9999;
+}
+
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
+
+/* ================================================================
+   Element UI — Dark Theme Overrides
+   ================================================================ */
+
+/* ---------- Input ---------- */
+.el-input__inner {
+    background-color: var(--surface)!important;
+    border-color: var(--border)!important;
+    color: var(--text)!important;
+    border-radius: var(--radius-sm)!important;
+    transition: border-color .25s, box-shadow .25s;
+}
+.el-input__inner::placeholder { color:var(--text-muted)!important; }
+.el-input__inner:hover  { border-color:var(--accent)!important; }
+.el-input__inner:focus  { border-color:var(--accent)!important; box-shadow:0 0 0 2px var(--accent-glow)!important; }
+.el-input__prefix,
+.el-input__suffix { color:var(--text-muted)!important; }
+.el-input.is-disabled .el-input__inner {
+    background-color:#0b0b18!important; color:var(--text-muted)!important;
+}
+.el-input__count-inner { background:transparent!important; color:var(--text-muted)!important; }
+
+/* ---------- Input-Number ---------- */
+.el-input-number--small { width:82px; }
+.el-input-number .el-input-number__decrease,
+.el-input-number .el-input-number__increase {
+    background:var(--surface)!important; border-color:var(--border)!important; color:var(--text-muted)!important;
+}
+.el-input-number .el-input-number__decrease:hover,
+.el-input-number .el-input-number__increase:hover { color:var(--accent)!important; }
+
+/* ---------- Select ---------- */
+.el-select .el-input .el-select__caret { color:var(--text-muted)!important; }
+.el-select .el-input.is-focus .el-input__inner { border-color:var(--accent)!important; }
+.el-select-dropdown {
+    background-color:var(--surface)!important; border-color:var(--border)!important;
+}
+.el-select-dropdown__item { color:var(--text)!important; }
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover { background-color:var(--card)!important; }
+.el-select-dropdown__item.selected { color:var(--accent)!important; font-weight:700; }
+.el-select-dropdown.is-multiple .el-select-dropdown__item.selected { color:var(--accent)!important; background:transparent!important; }
+.el-select-dropdown.is-multiple .el-select-dropdown__item.selected::after { color:var(--accent)!important; }
+.el-select__tags .el-tag {
+    background:rgba(212,168,83,.15)!important;
+    border-color:rgba(212,168,83,.35)!important;
+    color:var(--accent-light)!important;
+}
+.el-select__tags .el-tag .el-tag__close { color:var(--accent-light)!important; background:transparent!important; }
+.el-select__tags .el-tag .el-tag__close:hover { color:#fff!important; background:var(--accent)!important; }
+.el-select__input { color:var(--text)!important; }
+.el-popper[x-placement^=bottom] .popper__arrow::after { border-bottom-color:var(--surface)!important; }
+.el-popper[x-placement^=bottom] .popper__arrow { border-bottom-color:var(--border)!important; }
+.el-select-dropdown__empty { color:var(--text-muted)!important; }
+
+/* ---------- Button ---------- */
+.el-button {
+    border-radius:var(--radius-sm)!important; font-weight:500; transition:all .2s;
+}
+.el-button--default {
+    background:var(--surface)!important; border-color:var(--border)!important; color:var(--text)!important;
+}
+.el-button--default:hover,.el-button--default:focus {
+    background:var(--card)!important; border-color:var(--accent)!important; color:var(--accent)!important;
+}
+.el-button--default.is-disabled,
+.el-button--default.is-disabled:hover {
+    background:var(--surface)!important; border-color:var(--border)!important; color:#3a3650!important; cursor:not-allowed;
+}
+.el-button--primary {
+    background:var(--accent)!important; border-color:var(--accent)!important; color:#090912!important; font-weight:600;
+}
+.el-button--primary:hover,.el-button--primary:focus {
+    background:var(--accent-light)!important; border-color:var(--accent-light)!important;
+    box-shadow:0 2px 14px var(--accent-glow);
+}
+
+/* ---------- Tag ---------- */
+.el-tag { border-radius:3px!important; font-size:11px!important; padding:0 7px!important; height:20px!important; line-height:18px!important; border:none!important; }
+
+/* ---------- Form ---------- */
+.el-form-item__label { color:var(--text-muted)!important; font-size:13px!important; }
+
+/* ---------- Loading ---------- */
+.el-loading-mask { background:rgba(9,9,18,.78)!important; }
+.el-loading-text  { color:var(--text-muted)!important; }
+.el-loading-spinner .el-loading-circle { stroke:var(--accent)!important; }
+
+/* ---------- Empty ---------- */
+.el-empty__description p { color:var(--text-muted)!important; }
+
+/* ---------- Tooltip ---------- */
+.el-tooltip__popper.is-dark { background:var(--card)!important; border:1px solid var(--border)!important; color:var(--text)!important; }
+
+/* ================================================================
+   Page Header
+   ================================================================ */
+.page-header { text-align:center; padding:40px 24px 8px; }
+.site-title {
+    font-family:'Noto Serif SC',serif;
+    font-size:32px; font-weight:700;
+    color:var(--accent); letter-spacing:.06em;
+}
+.site-title i { margin-right:8px; font-size:30px; }
+.site-subtitle { margin-top:4px; font-size:13px; color:var(--text-muted); }
+.site-subtitle strong { color:var(--accent-light); }
+
+/* ================================================================
+   Search Panel
+   ================================================================ */
+.search-panel {
+    max-width:1100px; margin:22px auto 0;
+    padding:20px 24px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius);
+}
+.search-form { display:flex; flex-wrap:wrap; align-items:flex-end; gap:0 10px; }
+.search-form .el-form-item { margin-bottom:12px; }
+
+/* ================================================================
+   Comic Grid
+   ================================================================ */
+.comic-section {
+    max-width:1100px; margin:24px auto 0;
+    padding:0 24px; min-height:280px;
+}
+.comic-grid {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:20px;
+}
+
+/* ================================================================
+   Comic Card — PC (vertical)
+   ================================================================ */
+.comic-card {
+    display:flex; flex-direction:column;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:hidden;
+    cursor:pointer;
+    opacity:0;
+    animation:cardIn .5s ease forwards;
+    transition:transform .25s, border-color .25s, box-shadow .25s;
+}
+.comic-card:hover {
+    transform:translateY(-5px);
+    border-color:var(--accent);
+    box-shadow:0 8px 32px rgba(212,168,83,.12);
+}
+
+/* ---------- Cover ---------- */
+.comic-cover {
+    position:relative;
+    width:100%; aspect-ratio:3/4;
+    overflow:hidden;
+}
+.cover-fallback {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:linear-gradient(145deg,#1a1a38,#0f0f25);
+    z-index:0;
+}
+.cover-fallback i { font-size:34px; color:rgba(212,168,83,.18); margin-bottom:6px; }
+.cover-fallback span {
+    font-size:52px; font-weight:700;
+    color:rgba(212,168,83,.1);
+    font-family:'Noto Serif SC',serif;
+}
+.comic-cover img {
+    position:relative; z-index:1;
+    width:100%; height:100%; object-fit:cover;
+    transition:transform .4s ease;
+}
+.comic-card:hover .comic-cover img { transform:scale(1.06); }
+
+/* badges on cover */
+.cover-badges {
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between;
+    padding:8px 10px; z-index:2;
+}
+.badge {
+    font-size:11px; font-weight:600;
+    padding:2px 8px; border-radius:3px;
+    backdrop-filter:blur(6px);
+}
+.badge-type { background:rgba(0,0,0,.55); }
+.type-comic { color:var(--accent-light); }
+.type-coser { color:#f08080; }
+.badge-pages { background:rgba(0,0,0,.55); color:#aaa; }
+.badge-pages i { margin-right:2px; }
+
+/* ---------- Info ---------- */
+.comic-info {
+    padding:12px 14px 14px;
+    flex:1; display:flex; flex-direction:column;
+    gap:7px;
+}
+.comic-title {
+    font-size:14px; font-weight:600; color:var(--text);
+    line-height:1.4;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.comic-meta {
+    display:flex; flex-wrap:wrap; gap:10px;
+    font-size:11px; color:var(--text-muted);
+}
+.meta-item i { margin-right:3px; }
+.comic-tags,.comic-cats { display:flex; flex-wrap:wrap; gap:4px; }
+
+/* ================================================================
+   Pagination
+   ================================================================ */
+.pagination-bar {
+    max-width:1100px; margin:32px auto 50px;
+    padding:0 24px;
+}
+.pagination-inner {
+    display:flex; justify-content:center; align-items:center;
+    gap:12px; padding:16px 24px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius);
+}
+.pg-btn { width:36px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; }
+.pg-jump { display:flex; align-items:center; gap:8px; }
+.pg-slash { color:var(--text-muted); font-size:14px; user-select:none; }
+.pg-total { color:var(--text-muted); font-size:14px; font-weight:600; min-width:32px; }
+
+/* ================================================================
+   Animations
+   ================================================================ */
+@keyframes cardIn {
+    from { opacity:0; transform:translateY(18px); }
+    to   { opacity:1; transform:translateY(0); }
+}
+.card-anim-enter-active,.card-anim-leave-active { transition:opacity .3s, transform .3s; }
+.card-anim-enter,.card-anim-leave-to { opacity:0; transform:translateY(12px); }
+
+/* ================================================================
+   Responsive — Tablet ≤900
+   ================================================================ */
+@media (max-width:900px) {
+    .comic-grid { grid-template-columns:repeat(3,1fr); gap:16px; }
+}
+
+/* ================================================================
+   Responsive — Small Tablet ≤700
+   ================================================================ */
+@media (max-width:700px) {
+    .page-header { padding:28px 16px 6px; }
+    .site-title  { font-size:24px; }
+
+    .search-panel { margin:14px 12px 0; padding:16px; }
+    .search-form .el-form-item { width:100%; margin-right:0!important; }
+    .search-form .el-form-item .el-input,
+    .search-form .el-form-item .el-select { width:100%!important; }
+
+    .comic-section { padding:0 12px; margin-top:14px; }
+
+    .comic-grid { grid-template-columns:1fr; gap:12px; }
+
+    /* 横向布局 */
+    .comic-card { flex-direction:row; height:155px; }
+    .comic-cover { width:115px; min-width:115px; height:100%; aspect-ratio:unset; }
+    .cover-fallback span { font-size:38px; }
+    .cover-fallback i    { font-size:26px; }
+    .cover-badges { flex-direction:column; align-items:flex-start; gap:4px; padding:6px 7px; }
+    .comic-info  { padding:12px 14px; justify-content:center; }
+    .comic-title { font-size:15px; }
+
+    .pagination-bar { margin:22px 12px 40px; padding:0; }
+    .pagination-inner { gap:8px; padding:12px 12px; }
+    .pg-btn { width:32px; height:32px; }
+    .pg-jump { gap:6px; }
+}
+
+/* ================================================================
+   Responsive — Phone ≤420
+   ================================================================ */
+@media (max-width:420px) {
+    .site-title { font-size:20px; }
+    .comic-card { height:140px; }
+    .comic-cover { width:100px; min-width:100px; }
+    .comic-title { font-size:14px; }
+    .pagination-inner { gap:5px; padding:10px 8px; }
+    .el-input-number--small { width:66px; }
+}
