@@ -77,13 +77,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
 
             } catch (JWTException | ClassCastException e) {
-
-
                 System.out.println(">>> Token 异常: " + e.getMessage());
-                // ★ 关键改动：验证失败不要拦截，只是不设置认证
-                // 让 Security 授权层来决定是否放行
-//                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                return;
             }
         }
         // ★ 无论 token 是否有效，都继续执行过滤链

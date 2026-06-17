@@ -7,7 +7,7 @@
 
 var BlogAPI = (function () {
 
-  var BASE_URL = '/api'; // Spring Boot 后端地址
+  var BASE_URL = '/home/api'; // 首页数据接口前缀
 
   /* ---------- 通用请求 ---------- */
   function get(endpoint) {

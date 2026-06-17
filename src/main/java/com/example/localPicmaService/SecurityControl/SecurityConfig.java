@@ -24,15 +24,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
-                                "/erreo",
                                 "/login",
-
-                                "/publicAuth",
-                                "/static/**",
+                                "/home",
+                                "/home/api/**",       // 首页数据接口（公开访问）
+                                "/public/res/**",     // 公开静态资源（免登录）
                                 "/apilogin",
                                 "/apicheck-token",
-                                "/module/login/**",
-                                "/module/auth.js",
                                 "/health").permitAll()
                         .anyRequest().authenticated()
                 )

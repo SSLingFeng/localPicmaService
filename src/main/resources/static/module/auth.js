@@ -88,20 +88,6 @@ var Auth = (function() {
     }
 
     /**
-     * 受保护页面调用：未登录则跳走
-     */
-    function guardProtectedPage(loginPath) {
-        loginPath = loginPath || '/login';
-        checkToken().then(function(valid) {
-            if (!valid) {
-                saveRedirectUrl(window.location.pathname + window.location.search);
-                window.location.replace(loginPath);
-            }
-            // 有效则什么都不做，正常显示页面
-        });
-    }
-
-    /**
      * 自动带 token 的请求
      */
     function authFetch(url, options) {
@@ -134,7 +120,6 @@ var Auth = (function() {
         setAuth:            setAuth,
         clearAuth:          clearAuth,
         guardLoginPage:     guardLoginPage,
-        guardProtectedPage: guardProtectedPage,
         authFetch:          authFetch,
         getRedirectUrl:     getRedirectUrl,
         logout:             logout
