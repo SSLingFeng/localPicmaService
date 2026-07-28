@@ -119,6 +119,7 @@ var Auth = (function() {
         getToken:           getToken,
         setAuth:            setAuth,
         clearAuth:          clearAuth,
+        checkToken:         checkToken,
         guardLoginPage:     guardLoginPage,
         authFetch:          authFetch,
         getRedirectUrl:     getRedirectUrl,

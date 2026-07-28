@@ -1,0 +1,42 @@
+package com.example.localPicmaService.api.command.controller;
+
+import com.example.localPicmaService.api.command.service.CommandService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
+
+@RestController
+@RequestMapping("/api/EXcuteCommand/test")
+public class CommandSseController {
+
+    private final CommandService commandService;
+
+    public CommandSseController(CommandService commandService) {
+        this.commandService = commandService;
+    }
+
+    @GetMapping(value = "/api/EXcuteCommand", produces = "text/event-stream")
+    public SseEmitter pingBySse() {
+        SseEmitter emitter = new SseEmitter(0L);
+        String cmd = "E:\\SteamLibrary\\steamapps\\common\\ProjectZomboid\\ProjectZomboid64.bat";
+        new Thread(() -> {
+            try {
+                commandService.execute(cmd, line -> {
+                    try {
+                        System.out.println(line);
+                        emitter.send(line);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                emitter.complete();
+            } catch (Exception e) {
+                emitter.completeWithError(e);
+            }
+        }).start();
+        return emitter;
+    }
+}

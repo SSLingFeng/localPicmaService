@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>注册 - LocalPicma</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="/public/res/module/register/register.css">
+</head>
+<body>
+<div class="reg-host">
+    <div class="reg-wrapper">
+
+        <div class="reg-header">
+            <div class="brand">LocalPicma</div>
+            <h1>
+                创建账户
+                <span>填写以下信息完成注册</span>
+            </h1>
+        </div>
+
+        <form class="reg-form" id="registerForm" autocomplete="off">
+
+            <div class="reg-input-group">
+                <label for="regUsername">用户名</label>
+                <input
+                        type="text"
+                        id="regUsername"
+                        name="username"
+                        placeholder="输入用户名"
+                        autocomplete="username"
+                >
+            </div>
+
+            <div class="reg-input-group">
+                <label for="regPassword">密码</label>
+                <div class="input-wrapper">
+                    <input
+                            type="password"
+                            id="regPassword"
+                            name="password"
+                            placeholder="输入密码（至少6位）"
+                            autocomplete="new-password"
+                    >
+                    <button
+                            type="button"
+                            class="password-toggle"
+                            id="passwordToggle1"
+                            aria-label="切换密码可见性"
+                    >
+                        <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="reg-input-group">
+                <label for="regPassword2">确认密码</label>
+                <div class="input-wrapper">
+                    <input
+                            type="password"
+                            id="regPassword2"
+                            name="password2"
+                            placeholder="再次输入密码"
+                            autocomplete="new-password"
+                    >
+                    <button
+                            type="button"
+                            class="password-toggle"
+                            id="passwordToggle2"
+                            aria-label="切换密码可见性"
+                    >
+                        <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <svg class="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                             stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                注 册
+            </button>
+        </form>
+
+        <div class="reg-message" id="regMessage"></div>
+
+        <div class="reg-footer">
+            <a href="/login">已有账号？去登录</a>
+        </div>
+
+        <div class="accent-line"></div>
+
+    </div>
+</div>
+<script src="/public/res/module/auth.js"></script>
+<script>
+
+    (function () {
+
+        var form         = document.getElementById('registerForm');
+        var usernameInput = document.getElementById('regUsername');
+        var passwordInput = document.getElementById('regPassword');
+        var password2Input = document.getElementById('regPassword2');
+        var toggle1      = document.getElementById('passwordToggle1');
+        var toggle2      = document.getElementById('passwordToggle2');
+        var submitBtn    = document.getElementById('submitBtn');
+        var msgEl        = document.getElementById('regMessage');
+
+        function resetBtn() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '注 册';
+        }
+
+        function showMsg(text, type) {
+            msgEl.textContent = text;
+            msgEl.className = 'reg-message ' + (type || '');
+        }
+
+        /* Password toggles */
+        toggle1.addEventListener('click', function () {
+            var isPw = passwordInput.type === 'password';
+            passwordInput.type = isPw ? 'text' : 'password';
+            toggle1.classList.toggle('active', isPw);
+        });
+        toggle2.addEventListener('click', function () {
+            var isPw = password2Input.type === 'password';
+            password2Input.type = isPw ? 'text' : 'password';
+            toggle2.classList.toggle('active', isPw);
+        });
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            showMsg('');
+
+            var username = usernameInput.value.trim();
+            var password = passwordInput.value;
+            var password2 = password2Input.value;
+
+            if (!username) {
+                showMsg('请输入用户名', 'error');
+                usernameInput.focus();
+                return;
+            }
+            if (username.length < 2) {
+                showMsg('用户名至少2个字符', 'error');
+                usernameInput.focus();
+                return;
+            }
+            if (!password) {
+                showMsg('请输入密码', 'error');
+                passwordInput.focus();
+                return;
+            }
+            if (password.length < 6) {
+                showMsg('密码长度不能少于6位', 'error');
+                passwordInput.focus();
+                return;
+            }
+            if (password !== password2) {
+                showMsg('两次输入的密码不一致', 'error');
+                password2Input.focus();
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '注册中...';
+
+            fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: username, password: password })
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    showMsg('注册成功！正在跳转到登录页...', 'success');
+                    setTimeout(function () {
+                        window.location.href = '/login';
+                    }, 1500);
+                })
+                .catch(function (err) {
+                    showMsg(err.message || '注册失败，请稍后重试', 'error');
+                    resetBtn();
+                });
+        });
+    })();
+</script>
+</body>
+</html>
