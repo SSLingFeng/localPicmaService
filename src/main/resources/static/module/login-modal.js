@@ -167,7 +167,57 @@ var LoginModal = (function () {
             +   'transition:all .15s ease;'
             + '}'
             + '.lm-dropdown-item:hover{background:#211c28;color:#f0ece4;}'
-            + '.lm-dropdown-item.lm-dd-danger:hover{color:#e74c3c;}';
+            + '.lm-dropdown-item.lm-dd-danger:hover{color:#e74c3c;}'
+
+            /* ========== PROFILE MODAL ========== */
+            + '.lm-overlay{'
+            +   'position:fixed;inset:0;z-index:10000;'
+            +   'display:flex;align-items:center;justify-content:center;'
+            +   'background:rgba(0,0,0,.6);'
+            +   'backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);'
+            +   'opacity:0;visibility:hidden;'
+            +   'transition:opacity .3s ease,visibility .3s ease;'
+            + '}'
+            + '.lm-overlay.lm-show{opacity:1;visibility:visible;}'
+            + '.lm-modal{'
+            +   'position:relative;z-index:1;'
+            +   'width:100%;max-width:440px;'
+            +   'background:#110e14;'
+            +   'border:1px solid #2a2432;'
+            +   'border-radius:14px;'
+            +   'padding:36px 32px 28px;'
+            +   'transform:translateY(24px) scale(.97);'
+            +   'transition:transform .35s cubic-bezier(.16,1,.3,1);'
+            +   'box-shadow:0 24px 64px rgba(0,0,0,.55);'
+            +   'max-height:85vh;overflow-y:auto;'
+            + '}'
+            + '.lm-overlay.lm-show .lm-modal{transform:translateY(0) scale(1);}'
+            + '.lm-pf-row{'
+            +   'display:flex;gap:12px;'
+            + '}'
+            + '.lm-pf-row .lm-field{flex:1;}'
+            + '.lm-field input[readonly]{'
+            +   'opacity:.5;cursor:not-allowed;'
+            + '}'
+            + '.lm-btn-row{'
+            +   'display:flex;gap:10px;margin-top:12px;'
+            + '}'
+            + '.lm-btn-secondary{'
+            +   'flex:1;height:46px;'
+            +   'font-family:"Syne",sans-serif;font-size:13px;font-weight:700;'
+            +   'letter-spacing:.06em;text-transform:uppercase;'
+            +   'color:#d4a24e;background:transparent;'
+            +   'border:1.5px solid #d4a24e;border-radius:10px;cursor:pointer;'
+            +   'transition:all .25s ease;'
+            + '}'
+            + '.lm-btn-secondary:hover{background:rgba(212,162,78,.1);}'
+            + '.lm-submit.lm-btn-half{flex:1;margin-top:0;}'
+            + '.lm-msg{'
+            +   'text-align:center;font-size:12px;margin-top:10px;min-height:18px;'
+            +   'font-family:"DM Mono",monospace;'
+            + '}'
+            + '.lm-msg.lm-msg-ok{color:#6b9e8a;}'
+            + '.lm-msg.lm-msg-err{color:#e74c3c;}';
 
         var style = document.createElement('style');
         style.id = STYLE_ID;
@@ -203,9 +253,12 @@ var LoginModal = (function () {
 
         document.body.appendChild(overlay);
 
-        /* Events */
+        /* Events — close only if mousedown also started on overlay (prevents drag-to-close) */
+        overlay.addEventListener('mousedown', function (e) {
+            overlay._downOnOverlay = (e.target === overlay);
+        });
         overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) hide();
+            if (e.target === overlay && overlay._downOnOverlay) hide();
         });
         document.getElementById('lmClose').addEventListener('click', hide);
         document.getElementById('lmForm').addEventListener('submit', handleSubmit);
@@ -296,6 +349,7 @@ var LoginModal = (function () {
             +   '<span class="lm-user-arrow">&#9662;</span>'
             + '</div>'
             + '<div class="lm-dropdown" id="lmDropdown">'
+            +   '<button class="lm-dropdown-item" id="lmProfile">个人信息</button>'
             +   '<button class="lm-dropdown-item lm-dd-danger" id="lmLogout">退出登录</button>'
             + '</div>';
 
@@ -341,6 +395,259 @@ var LoginModal = (function () {
         /* Logout */
         document.getElementById('lmLogout').addEventListener('click', function () {
             Auth.logout();
+        });
+
+        /* Profile */
+        document.getElementById('lmProfile').addEventListener('click', function () {
+            showProfileModal();
+        });
+    }
+
+    /* ==================== PROFILE MODAL ==================== */
+
+    function showProfileModal() {
+        /* Close dropdown */
+        var dropdown = document.getElementById('lmDropdown');
+        if (dropdown) dropdown.classList.remove('lm-dd-show');
+
+        /* Remove existing profile modal if any */
+        var old = document.getElementById('lmProfileOverlay');
+        if (old) old.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lmProfileOverlay';
+        overlay.className = 'lm-overlay';
+        overlay.innerHTML = ''
+            + '<div class="lm-modal">'
+            +   '<button class="lm-close" id="lmPfClose">&times;</button>'
+            +   '<div class="lm-brand">LocalPicma</div>'
+            +   '<div class="lm-title">个人信息</div>'
+            +   '<form id="lmPfForm" autocomplete="off">'
+            +     '<div class="lm-field">'
+            +       '<label>账号</label>'
+            +       '<input type="text" id="lmPfUsername" readonly>'
+            +     '</div>'
+            +     '<div class="lm-field">'
+            +       '<label>用户名称</label>'
+            +       '<input type="text" id="lmPfDisplayname" placeholder="输入用户名称">'
+            +     '</div>'
+            +     '<div class="lm-pf-row">'
+            +       '<div class="lm-field">'
+            +         '<label>QQ号</label>'
+            +         '<input type="text" id="lmPfQQ" placeholder="输入QQ号" inputmode="numeric" maxlength="14" pattern="\\d*">'
+            +       '</div>'
+            +       '<div class="lm-field">'
+            +         '<label>Steam ID</label>'
+            +         '<input type="text" id="lmPfSteam" placeholder="输入Steam ID" inputmode="numeric" maxlength="20" pattern="\\d*">'
+            +       '</div>'
+            +     '</div>'
+            +     '<div class="lm-field">'
+            +       '<label>角色</label>'
+            +       '<input type="text" id="lmPfRole" readonly>'
+            +     '</div>'
+            +     '<div class="lm-btn-row">'
+            +       '<button type="button" class="lm-btn-secondary" id="lmPfChangePwd">修改密码</button>'
+            +       '<button type="submit" class="lm-submit lm-btn-half" id="lmPfSave">保 存</button>'
+            +     '</div>'
+            +   '</form>'
+            +   '<div class="lm-msg" id="lmPfMsg"></div>'
+            + '</div>';
+
+        document.body.appendChild(overlay);
+
+        /* Load data */
+        loadProfileData();
+
+        /* Events — close only if mousedown also started on overlay */
+        overlay.addEventListener('mousedown', function (e) {
+            overlay._downOnOverlay = (e.target === overlay);
+        });
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay && overlay._downOnOverlay) closeProfileModal();
+        });
+        document.getElementById('lmPfClose').addEventListener('click', closeProfileModal);
+        document.getElementById('lmPfForm').addEventListener('submit', handleProfileSave);
+        document.getElementById('lmPfChangePwd').addEventListener('click', showPasswordModal);
+
+        /* Show */
+        requestAnimationFrame(function () { overlay.classList.add('lm-show'); });
+    }
+
+    function closeProfileModal() {
+        var overlay = document.getElementById('lmProfileOverlay');
+        if (overlay) {
+            overlay.classList.remove('lm-show');
+            setTimeout(function () { overlay.remove(); }, 350);
+        }
+    }
+
+    function loadProfileData() {
+        Auth.authFetch('/api/user/info')
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.error) throw new Error(data.error);
+                document.getElementById('lmPfUsername').value = data.user_name || '';
+                document.getElementById('lmPfDisplayname').value = data.displayname || '';
+                document.getElementById('lmPfQQ').value = data.qq_number || '';
+                document.getElementById('lmPfSteam').value = data.steam_uuid || '';
+                document.getElementById('lmPfRole').value = data.role || '';
+            })
+            .catch(function (err) {
+                showPfMsg(err.message || '加载失败', true);
+            });
+    }
+
+    function handleProfileSave(e) {
+        e.preventDefault();
+        var displayname = document.getElementById('lmPfDisplayname').value.trim();
+        var qq = document.getElementById('lmPfQQ').value.trim();
+        var steam = document.getElementById('lmPfSteam').value.trim();
+
+        if (!displayname) {
+            showPfMsg('用户名称不能为空', true);
+            document.getElementById('lmPfDisplayname').focus();
+            return;
+        }
+        if (qq && !/^\d{1,14}$/.test(qq)) {
+            showPfMsg('QQ号仅限数字，最长14位', true);
+            return;
+        }
+        if (steam && !/^\d{1,20}$/.test(steam)) {
+            showPfMsg('Steam ID仅限数字，最长20位', true);
+            return;
+        }
+
+        var body = {
+            displayname: displayname,
+            qq_number:   qq,
+            steam_uuid:  steam
+        };
+
+        Auth.authFetch('/api/user/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.error) throw new Error(data.error);
+            showPfMsg('保存成功', false);
+            /* Update displayed username if displayname changed */
+            if (body.displayname) {
+                var badgeName = document.querySelector('.lm-user-name');
+                if (badgeName) badgeName.textContent = body.displayname;
+                localStorage.setItem('username', body.displayname);
+            }
+            /* Auto-close after short delay */
+            setTimeout(closeProfileModal, 800);
+        })
+        .catch(function (err) {
+            showPfMsg(err.message || '保存失败', true);
+        });
+    }
+
+    function showPfMsg(text, isError) {
+        var el = document.getElementById('lmPfMsg');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'lm-msg ' + (isError ? 'lm-msg-err' : 'lm-msg-ok');
+    }
+
+    /* ==================== PASSWORD MODAL ==================== */
+
+    function showPasswordModal() {
+        var old = document.getElementById('lmPwdOverlay');
+        if (old) old.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lmPwdOverlay';
+        overlay.className = 'lm-overlay';
+        overlay.style.zIndex = '10001';
+        overlay.innerHTML = ''
+            + '<div class="lm-modal" style="max-width:380px">'
+            +   '<button class="lm-close" id="lmPwdClose">&times;</button>'
+            +   '<div class="lm-brand">LocalPicma</div>'
+            +   '<div class="lm-title">修改密码</div>'
+            +   '<form id="lmPwdForm" autocomplete="off">'
+            +     '<div class="lm-field">'
+            +       '<label>原密码</label>'
+            +       '<input type="password" id="lmPwdOld" placeholder="输入原密码" autocomplete="current-password">'
+            +     '</div>'
+            +     '<div class="lm-field">'
+            +       '<label>新密码</label>'
+            +       '<input type="password" id="lmPwdNew" placeholder="输入新密码（至少6位）" autocomplete="new-password">'
+            +     '</div>'
+            +     '<div class="lm-field">'
+            +       '<label>确认新密码</label>'
+            +       '<input type="password" id="lmPwdConfirm" placeholder="再次输入新密码" autocomplete="new-password">'
+            +     '</div>'
+            +     '<button type="submit" class="lm-submit" id="lmPwdSubmit">确认修改</button>'
+            +   '</form>'
+            +   '<div class="lm-msg" id="lmPwdMsg"></div>'
+            + '</div>';
+
+        document.body.appendChild(overlay);
+
+        /* Events — close only if mousedown also started on overlay */
+        overlay.addEventListener('mousedown', function (e) {
+            overlay._downOnOverlay = (e.target === overlay);
+        });
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay && overlay._downOnOverlay) closePasswordModal();
+        });
+        document.getElementById('lmPwdClose').addEventListener('click', closePasswordModal);
+        document.getElementById('lmPwdForm').addEventListener('submit', handlePasswordChange);
+
+        requestAnimationFrame(function () { overlay.classList.add('lm-show'); });
+        setTimeout(function () { document.getElementById('lmPwdOld').focus(); }, 150);
+    }
+
+    function closePasswordModal() {
+        var overlay = document.getElementById('lmPwdOverlay');
+        if (overlay) {
+            overlay.classList.remove('lm-show');
+            setTimeout(function () { overlay.remove(); }, 350);
+        }
+    }
+
+    function handlePasswordChange(e) {
+        e.preventDefault();
+        var msg = document.getElementById('lmPwdMsg');
+        msg.textContent = '';
+
+        var oldPwd = document.getElementById('lmPwdOld').value;
+        var newPwd = document.getElementById('lmPwdNew').value;
+        var confirm = document.getElementById('lmPwdConfirm').value;
+
+        if (!oldPwd) { msg.textContent = '请输入原密码'; msg.className = 'lm-msg lm-msg-err'; return; }
+        if (!newPwd || newPwd.length < 6) { msg.textContent = '新密码长度不能少于6位'; msg.className = 'lm-msg lm-msg-err'; return; }
+        if (newPwd !== confirm) { msg.textContent = '两次输入的密码不一致'; msg.className = 'lm-msg lm-msg-err'; return; }
+
+        var btn = document.getElementById('lmPwdSubmit');
+        btn.disabled = true;
+        btn.textContent = '提交中...';
+
+        Auth.authFetch('/api/user/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oldPassword: oldPwd, newPassword: newPwd })
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.error) throw new Error(data.error);
+            msg.textContent = '密码修改成功，请重新登录';
+            msg.className = 'lm-msg lm-msg-ok';
+            setTimeout(function () {
+                closePasswordModal();
+                closeProfileModal();
+                Auth.logout();
+            }, 1500);
+        })
+        .catch(function (err) {
+            msg.textContent = err.message || '修改失败';
+            msg.className = 'lm-msg lm-msg-err';
+            btn.disabled = false;
+            btn.textContent = '确认修改';
         });
     }
 

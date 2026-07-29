@@ -1,10 +1,8 @@
 package com.example.localPicmaService.security.controller;
 
-import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
-import com.example.localPicmaService.common.DataSourceControl;
-import com.example.localPicmaService.common.DramVariable;
 import com.example.localPicmaService.security.JwtFilter;
+import com.example.localPicmaService.tool.SQLTool.SqlUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -18,11 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -86,30 +80,39 @@ public class AuthController {
             return res;
         }
 
-        JSONArray existing = DataSourceControl.runQuery(
-                "SELECT user_name FROM web_user WHERE user_name = {?reg_user?}");
-        if (!existing.isEmpty()) {
-            res.put("error", "用户名已存在");
-            return res;
+        try {
+            List<Map<String, Object>> existing = SqlUtil.query(
+                    "SELECT user_name FROM web_user WHERE user_name = {?varchar|reg_user?}",
+                    Map.of("reg_user", username.trim()), 1);
+            if (!existing.isEmpty()) {
+                res.put("error", "用户名已存在");
+                return res;
+            }
+
+            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+            String encodedPassword = encoder.encode(password);
+            String id = UUID.randomUUID().toString().replace("-", "");
+            Date now = new Date();
+
+            Map<String, Object> userData = new LinkedHashMap<>();
+            userData.put("id", id);
+            userData.put("ver", 1);
+            userData.put("create_date", now);
+            userData.put("update_date", now);
+            userData.put("del_flag", 0);
+            userData.put("user_name", username.trim());
+            userData.put("password", encodedPassword);
+            userData.put("displayname", username.trim());
+            userData.put("enabled", 1);
+            userData.put("role", "USER");
+
+            SqlUtil.sync("web_user").insert(List.of(userData)).commit();
+
+            res.put("success", true);
+            res.put("msg", "注册成功");
+        } catch (Exception e) {
+            res.put("error", "注册失败: " + e.getMessage());
         }
-
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        String encodedPassword = encoder.encode(password);
-        String id = UUID.randomUUID().toString().replace("-", "");
-        LocalDateTime now = LocalDateTime.now();
-
-        DramVariable.set("reg_id", id);
-        DramVariable.set("reg_user", username.trim());
-        DramVariable.set("reg_pass", encodedPassword);
-        DramVariable.set("reg_display", username.trim());
-        DramVariable.set("reg_now", now.toString());
-        DataSourceControl.runQuery(
-                "INSERT INTO web_user (id, ver, create_date, update_date, del_flag, user_name, password, displayname, enabled, role) "
-              + "VALUES ({?reg_id?}, 1, {?reg_now?}, {?reg_now?}, 0, {?reg_user?}, {?reg_pass?}, {?reg_display?}, 1, 'USER')");
-        DramVariable.clear();
-
-        res.put("success", true);
-        res.put("msg", "注册成功");
         return res;
     }
 
@@ -121,14 +124,18 @@ public class AuthController {
     @PostMapping("/api/migrate-passwords")
     public ResponseEntity<?> migratePasswords() {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-        JSONArray users = DataSourceControl.runQuery(
-                "SELECT user_name, password FROM web_user");
+
+        List<Map<String, Object>> users;
+        try {
+            users = SqlUtil.query("SELECT user_name, password FROM web_user");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "查询失败: " + e.getMessage()));
+        }
 
         int migrated = 0;
         int skipped = 0;
 
-        for (int i = 0; i < users.size(); i++) {
-            Map<String, Object> user = (Map<String, Object>) users.get(i);
+        for (Map<String, Object> user : users) {
             String username = (String) user.get("user_name");
             String rawPassword = (String) user.get("password");
 
@@ -138,11 +145,14 @@ public class AuthController {
             }
 
             String encoded = encoder.encode(rawPassword);
-            DramVariable.set("mig_pass", encoded);
-            DramVariable.set("mig_user", username);
-            DataSourceControl.runQuery(
-                    "UPDATE web_user SET password = {?mig_pass?} WHERE user_name = {?mig_user?}");
-            DramVariable.clear();
+            try {
+                SqlUtil.exec(
+                        "UPDATE web_user SET password = {?varchar|mig_pass?} WHERE user_name = {?varchar|mig_user?}",
+                        Map.of("mig_pass", encoded, "mig_user", username));
+            } catch (Exception e) {
+                return ResponseEntity.internalServerError()
+                        .body(Map.of("error", "更新用户 " + username + " 失败: " + e.getMessage()));
+            }
             migrated++;
         }
 

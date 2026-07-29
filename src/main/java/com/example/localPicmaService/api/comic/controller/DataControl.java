@@ -2,7 +2,7 @@ package com.example.localPicmaService.api.comic.controller;
 
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
-import com.example.localPicmaService.common.DataSourceControl;
+import com.example.localPicmaService.tool.SQLTool.SqlUtil;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,20 +16,19 @@ import java.util.*;
 public class DataControl {
 
     @PostMapping("/insertData")
-    public JSONObject insertData(@RequestBody(required = false) JSONObject json) {
+    public JSONObject insertData(@RequestBody(required = false) JSONObject json) throws Exception {
         JSONObject result = new JSONObject();
         result.put("result", "success");
 
-        String sql = "SELECT * FROM download ";
-        JSONArray download = DataSourceControl.runQuery(sql);
+        List<Map<String, Object>> download = SqlUtil.query("SELECT * FROM download");
 
         String type = (String) json.get("type");
         String path = (String) json.get("path");
 
-        List<JSONObject> insert = new ArrayList<>();
+        List<Map<String, Object>> insert = new ArrayList<>();
         for (int i = 0; i < download.size(); i++) {
-            JSONObject temp = download.getJSONObject(i);
-            JSONObject tempInsert = new JSONObject();
+            Map<String, Object> temp = download.get(i);
+            Map<String, Object> tempInsert = new LinkedHashMap<>();
             UUID uuid = UUID.randomUUID();
             String uuidStr = uuid.toString();
             tempInsert.put("id", uuidStr);
@@ -48,10 +47,10 @@ public class DataControl {
             tempInsert.put("download_time", new Date((Long) temp.get("time")));
             tempInsert.put("directory", temp.get("directory"));
             tempInsert.put("size", temp.get("size"));
-            tempInsert.put("json", temp.getJSONObject("json").get("value"));
+            tempInsert.put("json", ((JSONObject) temp.get("json")).get("value"));
             tempInsert.put("path", path);
 
-            JSONObject tempobj = temp.getJSONObject("json");
+            JSONObject tempobj = (JSONObject) temp.get("json");
             JSONObject comicItem = tempobj.getJSONObject("value");
             comicItem = (JSONObject) comicItem.get("comicItem");
             tempInsert.put("creator", comicItem.get("creator"));
@@ -88,8 +87,9 @@ public class DataControl {
             insert.add(tempInsert);
         }
         result.put("insert", insert);
-        DataSourceControl.sync("manga_source", insert, Collections.emptyList(), Collections.emptyList());
-        DataSourceControl.runQuery("delete from download where id <> '0'");
+
+        SqlUtil.sync("manga_source").insert(insert).commit();
+        SqlUtil.exec("DELETE FROM download WHERE id <> '0'");
         return result;
     }
 }
