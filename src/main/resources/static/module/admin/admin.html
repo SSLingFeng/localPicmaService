@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理 - LocalPicma</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="/public/res/module/auth.js"></script>
+    <script src="/public/res/module/login-modal.js"></script>
+    <style>
+        :root { --bg:#08060a; --card:#110e14; --input:#1a161f; --border:#2a2432; --accent:#d4a24e; --text:#f0ece4; --text2:#8a8391; --text3:#5a5462; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text); min-height:100vh; }
+
+        /* Header */
+        .hdr { position:sticky; top:0; z-index:100; display:flex; align-items:center; padding:0 32px; height:56px; background:rgba(17,14,20,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+        .hdr .brand { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--accent); white-space:nowrap; }
+        .hdr .spacer { flex:1; }
+
+        /* Back button — fixed bottom-right */
+        .back-fab { position:fixed; bottom:24px; right:24px; z-index:50; display:flex; align-items:center; gap:6px; padding:10px 18px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text2); text-decoration:none; font-family:'DM Mono',monospace; font-size:13px; transition:all .25s; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+        .back-fab:hover { border-color:var(--accent); color:var(--accent); transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.5); }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .hdr { padding: 0 16px; }
+            .body { padding: 16px; }
+            .back-fab { bottom: 16px; right: 16px; padding: 8px 14px; font-size: 12px; }
+            .lm-nav-fab { bottom: 16px; }
+        }
+        @media (max-width: 480px) {
+            .back-fab { bottom: 12px; right: 12px; padding: 6px 12px; font-size: 11px; }
+            .lm-nav-fab { bottom: 12px; }
+        }
+
+        /* Body */
+        .body { max-width:1280px; margin:0 auto; padding:28px 24px; }
+
+        /* Tabs */
+        .tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px; }
+        .tabs button { background:none; border:none; padding:12px 24px; font-family:'DM Mono',monospace; font-size:14px; color:var(--text2); cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
+        .tabs button.active { color:var(--accent); border-bottom-color:var(--accent); }
+        .tabs button:hover { color:var(--accent); }
+
+        /* Title */
+        .sec-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+        .sec-title .num { font-size:24px; color:var(--accent); font-weight:500; }
+
+        /* Table */
+        table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+        th, td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:13px; white-space:nowrap; }
+        th { background:var(--input); color:var(--text2); font-weight:500; font-size:12px; letter-spacing:.03em; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:var(--input); }
+
+        /* Button */
+        .btn { display:inline-flex; align-items:center; gap:4px; padding:6px 14px; font-family:'DM Mono',monospace; font-size:12px; border:1px solid var(--border); border-radius:6px; cursor:pointer; transition:all .2s; background:transparent; color:var(--text2); }
+        .btn:hover { border-color:var(--accent); color:var(--accent); }
+        .btn-pri { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:600; }
+        .btn-pri:hover { background:#ddb593; border-color:#ddb593; color:var(--bg); }
+        .btn-del { border-color:#e74c3c; color:#e74c3c; }
+        .btn-del:hover { background:#e74c3c; color:#fff; }
+        .btn-sm { padding:4px 10px; font-size:11px; }
+
+        /* Tag */
+        .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; }
+        .tag-ok { background:rgba(107,158,138,.15); color:#6b9e8a; }
+        .tag-off { background:rgba(90,84,98,.2); color:#8a8391; }
+        .tag-role { background:rgba(212,162,78,.15); color:#d4a24e; }
+
+        /* Form / Dialog */
+        .overlay { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); opacity:0; visibility:hidden; transition:opacity .3s,visibility .3s; }
+        .overlay.show { opacity:1; visibility:visible; }
+        .modal { position:relative; width:100%; max-width:460px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; transform:translateY(20px) scale(.97); transition:transform .35s cubic-bezier(.16,1,.3,1); box-shadow:0 24px 64px rgba(0,0,0,.55); }
+        .overlay.show .modal { transform:translateY(0) scale(1); }
+        .modal h3 { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; margin-bottom:20px; }
+        .modal .close { position:absolute; top:12px; right:14px; background:none; border:none; color:var(--text3); font-size:20px; cursor:pointer; }
+        .modal .close:hover { color:var(--text); }
+        .field { margin-bottom:14px; }
+        .field label { display:block; font-size:11px; color:var(--text3); margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+        .field input, .field select, .field textarea { width:100%; height:40px; padding:0 12px; font-family:'DM Mono',monospace; font-size:13px; color:var(--text); background:var(--input); border:1px solid var(--border); border-radius:8px; outline:none; transition:border-color .2s; }
+        .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--accent); }
+        .field textarea { height:60px; padding:8px 12px; resize:vertical; }
+        .field select { cursor:pointer; }
+        .field select option { background:var(--input); color:var(--text); }
+        .field-row { display:flex; gap:12px; }
+        .field-row .field { flex:1; }
+        .modal .actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+
+        /* Checkbox list */
+        .chk-list { max-height:400px; overflow-y:auto; padding:4px 0; }
+        .chk-item { padding:6px 0; display:flex; align-items:center; gap:8px; }
+        .chk-item input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; cursor:pointer; }
+        .chk-item label { font-size:13px; color:var(--text2); cursor:pointer; }
+        .chk-item .hint { color:var(--text3); font-size:11px; margin-left:4px; }
+
+        /* Msg */
+        .msg { text-align:center; font-size:12px; margin-top:10px; min-height:16px; }
+        .msg-ok { color:#6b9e8a; }
+        .msg-err { color:#e74c3c; }
+
+        /* Select in table */
+        .row-sel { display:inline-flex; align-items:center; gap:8px; }
+        .row-sel select { height:30px; padding:0 8px; font-size:12px; background:var(--input); color:var(--text); border:1px solid var(--border); border-radius:4px; outline:none; }
+        .row-sel select:focus { border-color:var(--accent); }
+        .row-sel select option { background:var(--input); }
+    </style>
+</head>
+<body>
+<div id="app" v-cloak>
+    <header class="hdr">
+        <div class="brand">LocalPicma · 后台管理</div>
+        <div class="spacer"></div>
+    </header>
+    <a href="/home" class="back-fab">← 首页</a>
+
+    <div class="body">
+        <div class="tabs">
+            <button :class="{active:tab==='roles'}" @click="switchTab('roles')">角色管理</button>
+            <button :class="{active:tab==='menus'}" @click="switchTab('menus')">菜单管理</button>
+            <button :class="{active:tab==='users'}" @click="switchTab('users')">用户角色</button>
+        </div>
+
+        <!-- ==================== 角色管理 ==================== -->
+        <div v-if="tab==='roles'">
+            <div class="sec-title"><span class="num">01</span> 角色管理</div>
+            <button class="btn btn-pri" style="margin-bottom:16px" @click="openRole()">+ 新增角色</button>
+            <table>
+                <thead><tr><th>角色名称</th><th>角色编码</th><th>描述</th><th>排序</th><th>状态</th><th style="min-width:220px">操作</th></tr></thead>
+                <tbody>
+                    <tr v-for="r in roles" :key="r.id">
+                        <td>{{ r.role_name }}</td>
+                        <td>{{ r.role_code }}</td>
+                        <td>{{ r.description }}</td>
+                        <td style="text-align:center">{{ r.sort_order }}</td>
+                        <td style="text-align:center"><span class="tag" :class="r.enabled===1?'tag-ok':'tag-off'">{{ r.enabled===1?'启用':'禁用' }}</span></td>
+                        <td><button class="btn btn-sm" @click="openRole(r)">编辑</button> <button class="btn btn-sm btn-pri" @click="openPerm(r)">权限</button> <button class="btn btn-sm btn-del" @click="delRole(r)">删除</button></td>
+                    </tr>
+                    <tr v-if="!roles.length"><td colspan="6" style="text-align:center;color:var(--text3);padding:24px">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ==================== 菜单管理 ==================== -->
+        <div v-if="tab==='menus'">
+            <div class="sec-title"><span class="num">02</span> 菜单管理</div>
+            <button class="btn btn-pri" style="margin-bottom:16px" @click="openMenu()">+ 新增菜单</button>
+            <table>
+                <thead><tr><th>菜单名称</th><th>编码</th><th>类型</th><th>页面路径</th><th>图标</th><th>排序</th><th>状态</th><th style="min-width:160px">操作</th></tr></thead>
+                <tbody>
+                    <tr v-for="m in flatMenus" :key="m.id" :style="m.parent_id&&m.parent_id!=='0'?'padding-left:20px':''">
+                        <td>{{ m.parent_id&&m.parent_id!=='0' ? '└ '+m.menu_name : m.menu_name }}</td>
+                        <td>{{ m.menu_code }}</td>
+                        <td><span class="tag" :class="m.is_folder===1?'tag-role':'tag-ok'">{{ m.is_folder===1?'文件夹':'菜单' }}</span></td>
+                        <td>{{ m.path }}</td>
+                        <td>{{ m.icon }}</td>
+                        <td style="text-align:center">{{ m.sort_order }}</td>
+                        <td style="text-align:center"><span class="tag" :class="m.enabled===1?'tag-ok':'tag-off'">{{ m.enabled===1?'启用':'禁用' }}</span></td>
+                        <td><button class="btn btn-sm" @click="openMenu(m)">编辑</button> <button class="btn btn-sm btn-del" @click="delMenu(m)">删除</button></td>
+                    </tr>
+                    <tr v-if="!flatMenus.length"><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ==================== 用户角色 ==================== -->
+        <div v-if="tab==='users'">
+            <div class="sec-title"><span class="num">03</span> 用户角色</div>
+            <table>
+                <thead><tr><th>账号</th><th>显示名称</th><th>当前角色</th><th>状态</th><th style="min-width:120px">操作</th></tr></thead>
+                <tbody>
+                    <tr v-for="u in users" :key="u.id">
+                        <td>{{ u.user_name }}</td>
+                        <td>{{ u.displayname }}</td>
+                        <td>
+                            <span v-for="rc in (u.roles||[])" :key="rc" class="tag tag-role" style="margin-right:4px">{{ rc }}</span>
+                            <span v-if="!u.roles||!u.roles.length" class="tag tag-off">未分配</span>
+                        </td>
+                        <td style="text-align:center"><span class="tag" :class="u.enabled===1?'tag-ok':'tag-off'">{{ u.enabled===1?'启用':'禁用' }}</span></td>
+                        <td><button class="btn btn-sm btn-pri" @click="openUserRole(u)">分配角色</button> <button class="btn btn-sm btn-del" @click="delUser(u)">删除</button></td>
+                    </tr>
+                    <tr v-if="!users.length"><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== 角色弹窗 ==================== -->
+    <div class="overlay" :class="{show:roleDlg}" @mousedown.self="roleDlg=false">
+        <div class="modal">
+            <button class="close" @click="roleDlg=false">&times;</button>
+            <h3>{{ rf.id ? '编辑角色' : '新增角色' }}</h3>
+            <div class="field"><label>角色名称</label><input v-model="rf.role_name" placeholder="如：管理员"></div>
+            <div class="field"><label>角色编码</label><input v-model="rf.role_code" placeholder="如：ADMIN" :disabled="!!rf.id"></div>
+            <div class="field"><label>描述</label><textarea v-model="rf.description" placeholder="角色描述"></textarea></div>
+            <div class="field"><label>排序</label><input v-model.number="rf.sort_order" type="number" min="0"></div>
+            <div class="field" v-if="rf.id"><label>启用</label><select v-model="rf.enabled"><option :value="1">启用</option><option :value="0">禁用</option></select></div>
+            <div class="actions"><button class="btn" @click="roleDlg=false">取消</button><button class="btn btn-pri" @click="saveRole()">保存</button></div>
+            <div class="msg" :class="roleMsg.type">{{ roleMsg.text }}</div>
+        </div>
+    </div>
+
+    <!-- ==================== 菜单弹窗 ==================== -->
+    <div class="overlay" :class="{show:menuDlg}" @mousedown.self="menuDlg=false">
+        <div class="modal">
+            <button class="close" @click="menuDlg=false">&times;</button>
+            <h3>{{ mf.id ? '编辑菜单' : '新增菜单' }}</h3>
+            <div class="field"><label>菜单名称</label><input v-model="mf.menu_name" placeholder="如：首页"></div>
+            <div class="field"><label>菜单编码</label><input v-model="mf.menu_code" placeholder="如：home" :disabled="!!mf.id"></div>
+            <div class="field"><label>页面路径</label><input v-model="mf.path" placeholder="如：/home"></div>
+            <div class="field"><label>图标</label><input v-model="mf.icon" placeholder="图标名称"></div>
+            <div class="field"><label>类型</label><select v-model.number="mf.is_folder"><option :value="0">菜单</option><option :value="1">文件夹</option></select></div>
+            <div class="field"><label>上级菜单</label><select v-model="mf.parent_id"><option value="">顶级菜单</option><option v-for="m in flatMenus" :key="m.id" :value="m.id">{{ m.menu_name }}</option></select></div>
+            <div class="field"><label>排序</label><input v-model.number="mf.sort_order" type="number" min="0"></div>
+            <div class="field" v-if="mf.id"><label>启用</label><select v-model="mf.enabled"><option :value="1">启用</option><option :value="0">禁用</option></select></div>
+            <div class="actions"><button class="btn" @click="menuDlg=false">取消</button><button class="btn btn-pri" @click="saveMenu()">保存</button></div>
+            <div class="msg" :class="menuMsg.type">{{ menuMsg.text }}</div>
+        </div>
+    </div>
+
+    <!-- ==================== 权限弹窗 ==================== -->
+    <div class="overlay" :class="{show:permDlg}" @mousedown.self="permDlg=false">
+        <div class="modal" style="max-width:560px">
+            <button class="close" @click="permDlg=false">&times;</button>
+            <h3>分配权限 — {{ permRole.role_name }}</h3>
+            <div class="chk-list">
+                <template v-for="node in menuTree" :key="node.id">
+                    <div class="chk-item" style="font-weight:600">
+                        <input type="checkbox" :id="'pm_'+node.id" :value="node.id" v-model="permIds"
+                               :indeterminate="isPartiallyChecked(node)"
+                               @change="toggleTreeCheck(node, $event)">
+                        <label :for="'pm_'+node.id">{{ node.is_folder ? '📁 ' : '' }}{{ node.menu_name }}</label>
+                    </div>
+                    <div v-for="child in node._children" :key="child.id" class="chk-item" style="padding-left:24px">
+                        <input type="checkbox" :id="'pm_'+child.id" :value="child.id" v-model="permIds">
+                        <label :for="'pm_'+child.id">{{ child.menu_name }}<span class="hint" v-if="child.path">({{ child.path }})</span></label>
+                    </div>
+                </template>
+            </div>
+            <div class="actions"><button class="btn" @click="permDlg=false">取消</button><button class="btn btn-pri" @click="savePerm()">保存权限</button></div>
+            <div class="msg" :class="permMsg.type">{{ permMsg.text }}</div>
+        </div>
+    </div>
+
+    <!-- ==================== 用户角色弹窗 ==================== -->
+    <div class="overlay" :class="{show:userRoleDlg}" @mousedown.self="userRoleDlg=false">
+        <div class="modal">
+            <button class="close" @click="userRoleDlg=false">&times;</button>
+            <h3>分配角色 — {{ userRoleTarget.user_name }}</h3>
+            <div class="chk-list">
+                <div class="chk-item" v-for="r in roles" :key="r.id">
+                    <input type="checkbox" :id="'ur_'+r.id" :value="r.role_code" v-model="userRoleCodes">
+                    <label :for="'ur_'+r.id">{{ r.role_name }}<span class="hint">({{ r.role_code }})</span></label>
+                </div>
+            </div>
+            <div class="actions"><button class="btn" @click="userRoleDlg=false">取消</button><button class="btn btn-pri" @click="saveUserRole()">保存角色</button></div>
+            <div class="msg" :class="userRoleMsg.type">{{ userRoleMsg.text }}</div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+<script>
+const { createApp, ref, reactive, onMounted, computed } = Vue;
+
+createApp({
+    setup() {
+        const tab = ref('roles');
+        const roles = ref([]);
+        const menus = ref([]);
+        const flatMenus = ref([]);
+        const users = ref([]);
+
+        const roleDlg = ref(false);
+        const rf = ref({});
+        const roleMsg = reactive({ text:'', type:'' });
+
+        const menuDlg = ref(false);
+        const mf = ref({});
+        const menuMsg = reactive({ text:'', type:'' });
+
+        const permDlg = ref(false);
+        const permRole = ref({});
+        const permIds = ref([]);
+        const permMsg = reactive({ text:'', type:'' });
+
+        const userRoleDlg = ref(false);
+        const userRoleTarget = ref({});
+        const userRoleCodes = ref([]);
+        const userRoleMsg = reactive({ text:'', type:'' });
+
+        const api = (method, url, data) => {
+            const h = {};
+            const t = Auth.getToken();
+            if (t) h['Authorization'] = 'Bearer ' + t;
+            const o = { method, url, headers: h };
+            if (data) { h['Content-Type'] = 'application/json'; o.data = data; }
+            return axios(o).then(r => r.data);
+        };
+
+        const loadRoles = () => api('GET','/page/admin/api/roles').then(d => roles.value = d||[]).catch(()=>{});
+        const loadMenus = () => api('GET','/page/admin/api/menus').then(d => { flatMenus.value = d||[]; }).catch(()=>{});
+        const loadUsers = () => api('GET','/page/admin/api/users').then(d => users.value = d||[]).catch(()=>{});
+
+        const switchTab = (name) => {
+            tab.value = name;
+            if (name==='roles') loadRoles();
+            if (name==='menus') loadMenus();
+            if (name==='users') { loadUsers(); loadRoles(); }
+        };
+
+        // Roles
+        const openRole = (row) => {
+            rf.value = row ? {...row} : {role_name:'',role_code:'',description:'',sort_order:0,enabled:1};
+            roleMsg.text = '';
+            roleDlg.value = true;
+        };
+        const saveRole = () => {
+            const url = rf.value.id ? '/page/admin/api/role/update' : '/page/admin/api/role/add';
+            api('POST', url, rf.value).then(d => {
+                if (d.error) { roleMsg.text=d.error; roleMsg.type='msg-err'; return; }
+                roleDlg.value = false;
+                loadRoles();
+            });
+        };
+        const delRole = (row) => {
+            if (!confirm('确定删除角色 "'+row.role_name+'"？')) return;
+            api('POST','/page/admin/api/role/delete',{id:row.id}).then(()=>loadRoles());
+        };
+
+        // Menus
+        const openMenu = (row) => {
+            mf.value = row ? {...row} : {menu_name:'',menu_code:'',path:'',icon:'',parent_id:'0',sort_order:0,is_folder:0};
+            if (!mf.value.parent_id) mf.value.parent_id = '0';
+            if (mf.value.is_folder == null) mf.value.is_folder = 0;
+            menuMsg.text = '';
+            menuDlg.value = true;
+        };
+        const saveMenu = () => {
+            // 归一化 parent_id
+            if (!mf.value.parent_id) mf.value.parent_id = '0';
+            const url = mf.value.id ? '/page/admin/api/menu/update' : '/page/admin/api/menu/add';
+            api('POST', url, mf.value).then(d => {
+                if (d.error) { menuMsg.text=d.error; menuMsg.type='msg-err'; return; }
+                menuDlg.value = false;
+                loadMenus();
+            });
+        };
+        const delMenu = (row) => {
+            if (!confirm('确定删除菜单 "'+row.menu_name+'"？关联权限也会删除。')) return;
+            api('POST','/page/admin/api/menu/delete',{id:row.id}).then(()=>loadMenus());
+        };
+
+        // Permissions
+        const openPerm = (role) => {
+            permRole.value = role;
+            permIds.value = [];
+            permMsg.text = '';
+            api('GET','/page/admin/api/role-menus?role_id='+role.id).then(d => {
+                permIds.value = d.menu_ids||[];
+                permDlg.value = true;
+            });
+        };
+        const savePerm = () => {
+            api('POST','/page/admin/api/role-menus/save',{role_id:permRole.value.id,menu_ids:permIds.value}).then(d => {
+                if (d.error) { permMsg.text=d.error; permMsg.type='msg-err'; return; }
+                permMsg.text='保存成功'; permMsg.type='msg-ok';
+                setTimeout(()=>permDlg.value=false, 600);
+            });
+        };
+
+        // Users
+        const openUserRole = (user) => {
+            userRoleTarget.value = user;
+            userRoleCodes.value = (user.roles || []).slice();
+            userRoleMsg.text = '';
+            userRoleDlg.value = true;
+        };
+        const saveUserRole = () => {
+            api('POST','/page/admin/api/user-roles/save',{user_id:userRoleTarget.value.id,role_codes:userRoleCodes.value}).then(d => {
+                if (d.error) { userRoleMsg.text=d.error; userRoleMsg.type='msg-err'; return; }
+                userRoleMsg.text='保存成功'; userRoleMsg.type='msg-ok';
+                setTimeout(()=>{ userRoleDlg.value=false; loadUsers(); }, 600);
+            });
+        };
+
+        const delUser = (row) => {
+            if (!confirm('确定删除用户 "'+row.user_name+'"？此操作不可恢复。')) return;
+            api('POST','/page/admin/api/user/delete',{id:row.id}).then(d => {
+                if (d.error) { alert(d.error); return; }
+                loadUsers();
+            });
+        };
+
+        // Menu tree for permission dialog
+        const menuTree = computed(() => {
+            const map = {};
+            const roots = [];
+            for (const m of flatMenus.value) {
+                map[m.id] = { ...m, _children: [] };
+            }
+            for (const m of flatMenus.value) {
+                const pid = m.parent_id && m.parent_id !== '0' ? m.parent_id : null;
+                if (pid && map[pid]) {
+                    map[pid]._children.push(map[m.id]);
+                } else {
+                    roots.push(map[m.id]);
+                }
+            }
+            return roots;
+        });
+
+        const isPartiallyChecked = (node) => {
+            if (!node._children || !node._children.length) return false;
+            const childIds = node._children.map(c => c.id);
+            const checked = childIds.filter(id => permIds.value.includes(id));
+            return checked.length > 0 && checked.length < childIds.length;
+        };
+
+        const toggleTreeCheck = (node, event) => {
+            if (!node._children || !node._children.length) return;
+            const childIds = node._children.map(c => c.id);
+            if (event.target.checked) {
+                // Add all children
+                for (const cid of childIds) {
+                    if (!permIds.value.includes(cid)) permIds.value.push(cid);
+                }
+            } else {
+                // Remove all children
+                permIds.value = permIds.value.filter(id => !childIds.includes(id));
+            }
+        };
+
+        onMounted(() => {
+            LoginModal.init();
+            loadRoles();
+            loadMenus();
+            loadUsers();
+        });
+
+        return { tab, roles, flatMenus, users, switchTab,
+            roleDlg, rf, roleMsg, openRole, saveRole, delRole,
+            menuDlg, mf, menuMsg, openMenu, saveMenu, delMenu,
+            permDlg, permRole, permIds, permMsg, openPerm, savePerm, menuTree, isPartiallyChecked, toggleTreeCheck,
+            userRoleDlg, userRoleTarget, userRoleCodes, userRoleMsg, openUserRole, saveUserRole, delUser };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

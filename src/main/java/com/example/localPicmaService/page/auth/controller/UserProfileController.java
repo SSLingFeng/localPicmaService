@@ -1,4 +1,4 @@
-package com.example.localPicmaService.api.user.controller;
+package com.example.localPicmaService.page.auth.controller;
 
 import cn.hutool.json.JSONObject;
 import com.example.localPicmaService.security.JwtFilter;
@@ -11,12 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/page/login/api/user")
 public class UserProfileController {
 
-    /**
-     * 获取当前登录用户的个人信息
-     */
     @GetMapping("/info")
     public ResponseEntity<?> getInfo(HttpServletRequest request) {
         String username = getCurrentUsername(request);
@@ -37,9 +34,6 @@ public class UserProfileController {
         }
     }
 
-    /**
-     * 更新当前登录用户的个人信息（displayname, qq_number, steam_uuid）
-     */
     @PostMapping("/update")
     public ResponseEntity<?> updateInfo(@RequestBody JSONObject body, HttpServletRequest request) {
         String username = getCurrentUsername(request);
@@ -74,9 +68,6 @@ public class UserProfileController {
         }
     }
 
-    /**
-     * 修改密码
-     */
     @PostMapping("/change-password")
     public ResponseEntity<?> changePassword(@RequestBody JSONObject body, HttpServletRequest request) {
         String username = getCurrentUsername(request);

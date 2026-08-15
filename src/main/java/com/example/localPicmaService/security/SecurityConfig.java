@@ -8,10 +8,16 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import com.example.localPicmaService.config.PasswordConfig;
+import java.util.function.Supplier;
 
 @Configuration
 public class SecurityConfig {
@@ -30,12 +36,16 @@ public class SecurityConfig {
                                 "/home",
                                 "/home/api/**",
                                 "/public/res/**",
-                                "/apilogin",
-                                "/apicheck-token",
-                                "/api/register",
-                                "/api/migrate-passwords",
+                                "/page/login/api/login",
+                                "/page/login/api/check-token",
+                                "/page/login/api/register",
+                                "/page/login/api/migrate-passwords",
+                                "/page/cartoon/api/cover",
+                                "/page/cartoon/api/pageImage",
+                                "/page/rustfs/api/download",
+                                "/api/squad/**",
                                 "/health").permitAll()
-                        .anyRequest().authenticated()
+                        .anyRequest().access(superAdminOrAuthenticated())
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
@@ -61,6 +71,29 @@ public class SecurityConfig {
     @Bean
     public JwtFilter jwtFilter() {
         return jwtFilter;
+    }
+
+    /**
+     * 超级管理员（SSLingFengDev）或已认证用户均可通过。
+     * 超管角色由 JwtFilter 自动注入 ROLE_SUPER_ADMIN 权限标识。
+     */
+    private static AuthorizationManager<RequestAuthorizationContext> superAdminOrAuthenticated() {
+        return new AuthorizationManager<>() {
+            @Override
+            public AuthorizationDecision authorize(Supplier<? extends Authentication> supplier, RequestAuthorizationContext context) {
+                Authentication auth = supplier.get();
+                if (auth == null || !auth.isAuthenticated()
+                        || "anonymousUser".equals(auth.getPrincipal())) {
+                    return new AuthorizationDecision(false);
+                }
+                // 超管始终放行
+                boolean isSuperAdmin = auth.getAuthorities().stream()
+                        .anyMatch(a -> JwtFilter.SUPER_ADMIN_AUTH.equals(a.getAuthority()));
+                if (isSuperAdmin) return new AuthorizationDecision(true);
+                // 普通已认证用户
+                return new AuthorizationDecision(true);
+            }
+        };
     }
 
     @Autowired

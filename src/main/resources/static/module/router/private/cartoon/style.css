@@ -338,3 +338,133 @@ body::before {
     .pagination-inner { gap:5px; padding:10px 8px; }
     .el-input-number--small { width:66px; }
 }
+
+/* ================================================================
+   Image Viewer Dialog
+   ================================================================ */
+.image-viewer-dlg .el-dialog__header { padding:10px 16px; }
+.image-viewer-dlg .el-dialog__body  { padding:8px 16px 16px; }
+.image-viewer-dlg .el-dialog__headerbtn { top:10px; }
+
+/* ================================================================
+   Fullscreen Reader
+   ================================================================ */
+.reader-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #090912;
+    display: flex;
+    flex-direction: column;
+}
+.reader-close {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 100000;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: rgba(0,0,0,.65);
+    color: #fff;
+    font-size: 22px;
+    line-height: 44px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: background .2s, transform .15s;
+    box-shadow: 0 2px 12px rgba(0,0,0,.4);
+}
+.reader-close:hover {
+    background: rgba(220,60,60,.85);
+    transform: scale(1.08);
+}
+.reader-scroll {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0 40px;
+}
+.reader-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+/* transition */
+.reader-fade-enter-active,
+.reader-fade-leave-active {
+    transition: opacity .2s ease;
+}
+.reader-fade-enter,
+.reader-fade-leave-to {
+    opacity: 0;
+}
+
+/* ================================================================
+   Comic Detail Dialog
+   ================================================================ */
+.comic-detail-dlg .el-dialog__header { padding:14px 20px 0; }
+.comic-detail-dlg .el-dialog__body  { padding:16px 20px 24px; }
+.comic-detail-dlg .el-dialog__headerbtn { top:14px; }
+
+.detail-header {
+    display:flex; gap:18px;
+}
+.detail-cover {
+    flex-shrink:0; width:160px; height:213px;
+    border-radius:var(--radius); overflow:hidden;
+    border:1px solid var(--border);
+    background:var(--surface);
+}
+.detail-cover img {
+    width:100%; height:100%; object-fit:cover;
+}
+.detail-cover-fallback {
+    width:100%; height:100%;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-muted); font-size:36px;
+}
+.detail-info {
+    flex:1; display:flex; flex-direction:column; gap:8px;
+    min-width:0;
+}
+.detail-title {
+    font-size:18px; font-weight:700; color:var(--text);
+    line-height:1.4;
+    overflow:hidden; text-overflow:ellipsis;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+}
+.detail-meta {
+    display:flex; flex-wrap:wrap; gap:12px;
+    font-size:12px; color:var(--text-muted);
+}
+.detail-meta i { margin-right:3px; }
+.detail-label {
+    font-size:11px; color:var(--text-muted);
+    margin-right:4px; white-space:nowrap;
+}
+.detail-tags, .detail-cats {
+    display:flex; flex-wrap:wrap; align-items:center; gap:4px;
+}
+.detail-tags .el-tag, .detail-cats .el-tag {
+    cursor:default;
+}
+
+/* 移动端：详情弹窗纵向布局 */
+@media (max-width:600px) {
+    .comic-detail-dlg { width:95%!important; }
+    .comic-detail-dlg .el-dialog { width:100%!important; }
+    .detail-header { flex-direction:column; align-items:center; }
+    .detail-cover { width:130px; height:173px; }
+    .detail-info { text-align:center; }
+    .detail-meta { justify-content:center; }
+    .detail-tags, .detail-cats { justify-content:center; }
+    .detail-title { -webkit-line-clamp:3; }
+}
+

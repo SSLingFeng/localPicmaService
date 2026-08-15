@@ -1,4 +1,4 @@
-package com.example.localPicmaService.security.controller;
+package com.example.localPicmaService.page.auth.controller;
 
 import cn.hutool.json.JSONObject;
 import com.example.localPicmaService.security.JwtFilter;
@@ -25,7 +25,7 @@ public class AuthController {
     @Autowired
     private AuthenticationManager authenticationManager;
 
-    @PostMapping("/apilogin")
+    @PostMapping("/page/login/api/login")
     public JSONObject login(@RequestBody JSONObject userInfo,
                             HttpServletResponse response) {
         JSONObject res = new JSONObject();
@@ -65,7 +65,7 @@ public class AuthController {
         return res;
     }
 
-    @PostMapping("/api/register")
+    @PostMapping("/page/login/api/register")
     public JSONObject register(@RequestBody JSONObject userInfo) {
         JSONObject res = new JSONObject();
         String username = userInfo.getStr("name");
@@ -108,6 +108,17 @@ public class AuthController {
 
             SqlUtil.sync("web_user").insert(List.of(userData)).commit();
 
+            List<Map<String, Object>> defaultRole = SqlUtil.query(
+                    "SELECT id FROM sys_role WHERE role_code = {?varchar|code?}", Map.of("code", "DEFAULT"), 1);
+            if (!defaultRole.isEmpty()) {
+                String defaultRoleId = (String) defaultRole.get(0).get("id");
+                SqlUtil.sync("web_user_role").insert(List.of(Map.of(
+                        "id", UUID.randomUUID().toString().replace("-", ""),
+                        "user_id", id,
+                        "role_id", defaultRoleId
+                ))).commit();
+            }
+
             res.put("success", true);
             res.put("msg", "注册成功");
         } catch (Exception e) {
@@ -116,12 +127,7 @@ public class AuthController {
         return res;
     }
 
-    /**
-     * 一次性密码迁移接口：将数据库中明文密码转为 BCrypt 加密格式。
-     * 调用方式：POST /api/migrate-passwords  （无需认证）
-     * 迁移完成后建议删除此接口或加回认证保护。
-     */
-    @PostMapping("/api/migrate-passwords")
+    @PostMapping("/page/login/api/migrate-passwords")
     public ResponseEntity<?> migratePasswords() {
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 

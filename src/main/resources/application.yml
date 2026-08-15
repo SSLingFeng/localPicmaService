@@ -5,6 +5,7 @@ server:
 logging:
   level:
     root: info
+    com.example.localPicmaService.tool.SQLTool.SqlUtil: debug
 spring:
   datasource:
     url: jdbc:postgresql://127.0.0.1:5432/database
@@ -17,4 +18,9 @@ spring:
       idle-timeout: 60000
       connection-timeout: 30000
       max-lifetime: 1800000
+  data:
+    redis:
+      host: 192.168.31.6
+      port: 6379
+      password:
 

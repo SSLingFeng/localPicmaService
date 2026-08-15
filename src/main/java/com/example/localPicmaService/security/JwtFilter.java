@@ -20,6 +20,9 @@ import java.util.Map;
 public class JwtFilter extends OncePerRequestFilter {
 
     private static final String SECRET = "localPicmaService";
+    /** 超级管理员角色编码（硬编码，拥有全部权限） */
+    public static final String SUPER_ADMIN_ROLE = "SSLingFengDev";
+    public static final String SUPER_ADMIN_AUTH = "ROLE_SUPER_ADMIN";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -43,6 +46,11 @@ public class JwtFilter extends OncePerRequestFilter {
                     List<SimpleGrantedAuthority> authorities = roles.stream()
                             .map(SimpleGrantedAuthority::new)
                             .toList();
+                    // 超级管理员自动获得全部权限标识
+                    if (roles.contains(SUPER_ADMIN_ROLE)) {
+                        authorities = new java.util.ArrayList<>(authorities);
+                        authorities.add(new SimpleGrantedAuthority(SUPER_ADMIN_AUTH));
+                    }
                     System.out.println(">>> 认证成功: " + username + " " + roles);
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(username, null, authorities);

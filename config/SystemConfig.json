@@ -1,0 +1,38 @@
+{
+    "sys.systemName": {
+        "text": "System display name",
+        "type": "String",
+        "zh-cn": "系统显示名称",
+        "value": "localPicmaService"
+    },
+    "sys.logPath": {
+        "text": "Log file storage path (relative or absolute)",
+        "type": "Path",
+        "zh-cn": "日志文件存储路径",
+        "value": "E:\\log"
+    },
+    "sys.logSize": {
+        "text": "Single log file max size, used with logSizeType",
+        "type": "int",
+        "zh-cn": "单个日志文件大小，配合 logSizeType 使用",
+        "value": 10
+    },
+    "sys.logSizeType": {
+        "text": "Log size unit: KB / MB / GB",
+        "type": "String",
+        "zh-cn": "日志文件大小单位: KB / MB / GB",
+        "value": "MB"
+    },
+    "sys.logFileNum": {
+        "text": "Max number of log files per task instance",
+        "type": "int",
+        "zh-cn": "单个任务实例的最大日志文件数",
+        "value": 5
+    },
+    "sys.mediaRootPath": {
+        "text": "Media root path for comics/coser files",
+        "type": "String",
+        "zh-cn": "媒体资源根目录（漫画/coser 等文件存放路径）",
+        "value": ""
+    }
+}

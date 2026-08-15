@@ -121,6 +121,40 @@ var LoginModal = (function () {
             +   'font-family:"DM Mono",monospace;'
             + '}'
 
+            /* Options row (remember me / auto login) */
+            + '.lm-options{'
+            +   'display:flex;align-items:center;gap:16px;'
+            +   'margin:4px 0 0;'
+            + '}'
+            + '.lm-chk{'
+            +   'display:inline-flex;align-items:center;gap:5px;'
+            +   'cursor:pointer;font-size:12px;color:#8a8391;'
+            +   'font-family:"DM Mono",monospace;user-select:none;'
+            + '}'
+            + '.lm-chk input{display:none;}'
+            + '.lm-chk .lm-chk-box{'
+            +   'width:14px;height:14px;border-radius:3px;'
+            +   'border:1.5px solid #5a5462;display:flex;'
+            +   'align-items:center;justify-content:center;'
+            +   'transition:all .2s;flex-shrink:0;'
+            + '}'
+            + '.lm-chk input:checked+.lm-chk-box{'
+            +   'background:#d4a24e;border-color:#d4a24e;'
+            + '}'
+            + '.lm-chk .lm-chk-box svg{display:none;width:10px;height:10px;}'
+            + '.lm-chk input:checked+.lm-chk-box svg{display:block;}'
+
+            /* Footer (register link) */
+            + '.lm-footer{'
+            +   'text-align:center;margin-top:14px;'
+            +   'font-family:"DM Mono",monospace;font-size:12px;'
+            + '}'
+            + '.lm-link{'
+            +   'color:#8a8391;text-decoration:none;'
+            +   'transition:color .2s;'
+            + '}'
+            + '.lm-link:hover{color:#d4a24e;}'
+
             /* User badge (top-right) */
             + '.lm-user-badge{'
             +   'display:flex;align-items:center;gap:8px;'
@@ -217,7 +251,79 @@ var LoginModal = (function () {
             +   'font-family:"DM Mono",monospace;'
             + '}'
             + '.lm-msg.lm-msg-ok{color:#6b9e8a;}'
-            + '.lm-msg.lm-msg-err{color:#e74c3c;}';
+            + '.lm-msg.lm-msg-err{color:#e74c3c;}'
+
+            /* ========== NAV FAB ========== */
+            + '.lm-nav-fab{'
+            +   'position:fixed;bottom:24px;left:0;z-index:50;'
+            +   'transform:translateX(0);'
+            +   'transition:transform .35s cubic-bezier(.16,1,.3,1);'
+            + '}'
+            + '.lm-nav-fab:hover,.lm-nav-fab.lm-nav-open{'
+            +   'transform:translateX(8px);'
+            + '}'
+            + '.lm-nav-btn{'
+            +   'width:44px;height:44px;border-radius:0 22px 22px 0;'
+            +   'background:#110e14;border:1px solid #2a2432;border-left:none;'
+            +   'color:#d4a24e;font-size:20px;cursor:pointer;'
+            +   'display:flex;align-items:center;justify-content:center;'
+            +   'transition:all .25s;box-shadow:4px 0 16px rgba(0,0,0,.3);'
+            + '}'
+            + '.lm-nav-fab:hover .lm-nav-btn,.lm-nav-fab.lm-nav-open .lm-nav-btn{'
+            +   'background:#1a161f;box-shadow:4px 0 24px rgba(0,0,0,.5);'
+            + '}'
+            + '.lm-nav-menu{'
+            +   'position:absolute;bottom:52px;left:0;'
+            +   'min-width:140px;background:#110e14;'
+            +   'border:1px solid #2a2432;border-radius:10px;'
+            +   'overflow:hidden;opacity:0;visibility:hidden;'
+            +   'transform:translateY(8px);'
+            +   'transition:all .25s cubic-bezier(.16,1,.3,1);'
+            +   'box-shadow:0 -8px 32px rgba(0,0,0,.5);'
+            + '}'
+            + '.lm-nav-fab.lm-nav-open .lm-nav-menu{'
+            +   'opacity:1;visibility:visible;transform:translateY(0);'
+            + '}'
+            + '.lm-nav-item{'
+            +   'display:block;width:100%;padding:10px 16px;'
+            +   'background:none;border:none;cursor:pointer;'
+            +   'font-family:"DM Mono",monospace;font-size:13px;'
+            +   'color:#8a8391;text-align:left;text-decoration:none;'
+            +   'transition:all .15s;'
+            + '}'
+            + '.lm-nav-item:hover{background:#1a161f;color:#d4a24e;}'
+            /* Submenu group */
+            + '.lm-nav-group{position:relative;}'
+            + '.lm-nav-parent{'
+            +   'display:flex;align-items:center;justify-content:space-between;'
+            +   'width:100%;padding:10px 16px;'
+            +   'background:none;border:none;cursor:pointer;'
+            +   'font-family:"DM Mono",monospace;font-size:13px;'
+            +   'color:#8a8391;text-align:left;'
+            +   'transition:all .15s;'
+            + '}'
+            + '.lm-nav-parent:hover{background:#1a161f;color:#d4a24e;}'
+            + '.lm-nav-parent .arrow{font-size:10px;transition:transform .2s;}'
+            + '.lm-nav-group.lm-nav-expanded>.lm-nav-parent .arrow{transform:rotate(90deg);}'
+            + '.lm-nav-children{'
+            +   'display:none;padding-left:12px;'
+            +   'border-left:1px solid #2a2432;margin-left:20px;'
+            + '}'
+            + '.lm-nav-group.lm-nav-expanded>.lm-nav-children{display:block;}'
+
+            /* 移动端适配 */
+            + '@media (max-width: 768px) {'
+            +   '.lm-nav-fab { bottom: 16px; }'
+            +   '.lm-user-badge { padding: 4px 10px; }'
+            +   '.lm-user-avatar { width: 24px; height: 24px; font-size: 10px; }'
+            +   '.lm-user-name { font-size: 12px; }'
+            + '}'
+            + '@media (max-width: 480px) {'
+            +   '.lm-nav-fab { bottom: 12px; }'
+            +   '.lm-user-badge { padding: 3px 8px; }'
+            +   '.lm-user-avatar { width: 20px; height: 20px; font-size: 9px; }'
+            +   '.lm-user-name { font-size: 11px; }'
+            + '}'
 
         var style = document.createElement('style');
         style.id = STYLE_ID;
@@ -246,9 +352,16 @@ var LoginModal = (function () {
             +       '<label for="lmPassword">密码</label>'
             +       '<input type="password" id="lmPassword" placeholder="输入密码" autocomplete="current-password">'
             +     '</div>'
+            +     '<div class="lm-options">'
+            +       '<label class="lm-chk"><input type="checkbox" id="lmRemember"><span class="lm-chk-box"><svg viewBox="0 0 12 12" fill="none" stroke="#08060a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>记住密码</label>'
+            +       '<label class="lm-chk"><input type="checkbox" id="lmAutoLogin"><span class="lm-chk-box"><svg viewBox="0 0 12 12" fill="none" stroke="#08060a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>自动登录</label>'
+            +     '</div>'
             +     '<button type="submit" class="lm-submit" id="lmSubmit">登 录</button>'
             +   '</form>'
             +   '<div class="lm-error" id="lmError"></div>'
+            +   '<div class="lm-footer">'
+            +     '<a href="/register" class="lm-link">没有账号？去注册</a>'
+            +   '</div>'
             + '</div>';
 
         document.body.appendChild(overlay);
@@ -262,6 +375,14 @@ var LoginModal = (function () {
         });
         document.getElementById('lmClose').addEventListener('click', hide);
         document.getElementById('lmForm').addEventListener('submit', handleSubmit);
+
+        /* Checkbox联动: 自动登录 → 记住密码 */
+        document.getElementById('lmAutoLogin').addEventListener('change', function () {
+            if (this.checked) document.getElementById('lmRemember').checked = true;
+        });
+        document.getElementById('lmRemember').addEventListener('change', function () {
+            if (!this.checked) document.getElementById('lmAutoLogin').checked = false;
+        });
 
         /* Close on Escape */
         document.addEventListener('keydown', function (e) {
@@ -279,10 +400,31 @@ var LoginModal = (function () {
         document.getElementById('lmPassword').value = '';
         document.getElementById('lmSubmit').disabled = false;
         document.getElementById('lmSubmit').textContent = '登 录';
+
+        // 预填已保存的凭据 + 恢复勾选状态
+        var saved = Auth.loadCredentials();
+        if (saved) {
+            if (saved.username) document.getElementById('lmUsername').value = saved.username;
+            if (saved.password) document.getElementById('lmPassword').value = saved.password;
+            document.getElementById('lmRemember').checked = saved.remember;
+            document.getElementById('lmAutoLogin').checked = saved.autoLogin;
+        } else {
+            document.getElementById('lmRemember').checked = false;
+            document.getElementById('lmAutoLogin').checked = false;
+        }
+
         overlay.classList.add('lm-show');
         setTimeout(function () {
-            document.getElementById('lmUsername').focus();
-        }, 100);
+            var u = document.getElementById('lmUsername');
+            // 自动登录：有凭据且勾选了自动登录，直接提交
+            if (saved && saved.autoLogin && saved.username && saved.password) {
+                document.getElementById('lmForm').dispatchEvent(new Event('submit'));
+            } else if (u.value) {
+                document.getElementById('lmPassword').focus();
+            } else {
+                u.focus();
+            }
+        }, 150);
     }
 
     function hide() {
@@ -306,7 +448,7 @@ var LoginModal = (function () {
         submitBtn.disabled = true;
         submitBtn.textContent = '登录中...';
 
-        fetch('/apilogin', {
+        fetch('/page/login/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: username, password: password })
@@ -317,8 +459,18 @@ var LoginModal = (function () {
                 throw new Error(data.error || '登录失败，请检查用户名和密码');
             }
             Auth.setAuth(data.token, data.username);
+            // 根据勾选状态保存/清除凭据
+            var remember = document.getElementById('lmRemember').checked;
+            var auto = document.getElementById('lmAutoLogin').checked;
+            if (remember || auto) {
+                Auth.saveCredentials(username, password, remember, auto);
+            } else {
+                Auth.clearCredentials();
+            }
             hide();
             renderUserBadge(data.username);
+            try { localStorage.removeItem(NAV_MENU_KEY); } catch (e) {}
+            loadNavMenus();
         })
         .catch(function (err) {
             errorEl.textContent = err.message || '网络错误，请稍后重试';
@@ -375,6 +527,14 @@ var LoginModal = (function () {
             container.style.top = '14px';
             container.style.right = '20px';
             container.style.zIndex = '9999';
+            // 移动端适配 — 避开状态栏
+            if (window.innerWidth <= 480) {
+                container.style.top = '58px';
+                container.style.right = '12px';
+            } else if (window.innerWidth <= 768) {
+                container.style.top = '60px';
+                container.style.right = '16px';
+            }
             document.body.appendChild(container);
         }
 
@@ -482,7 +642,7 @@ var LoginModal = (function () {
     }
 
     function loadProfileData() {
-        Auth.authFetch('/api/user/info')
+        Auth.authFetch('/page/login/api/user/info')
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 if (data.error) throw new Error(data.error);
@@ -523,7 +683,7 @@ var LoginModal = (function () {
             steam_uuid:  steam
         };
 
-        Auth.authFetch('/api/user/update', {
+        Auth.authFetch('/page/login/api/user/update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -627,7 +787,7 @@ var LoginModal = (function () {
         btn.disabled = true;
         btn.textContent = '提交中...';
 
-        Auth.authFetch('/api/user/change-password', {
+        Auth.authFetch('/page/login/api/user/change-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ oldPassword: oldPwd, newPassword: newPwd })
@@ -657,6 +817,127 @@ var LoginModal = (function () {
         return div.innerHTML;
     }
 
+    /* ==================== NAV FAB ==================== */
+
+    var NAV_MENU_KEY = 'lm_nav_menus';
+
+    function injectNavFab() {
+        if (document.getElementById('lmNavFab')) return;
+
+        var fab = document.createElement('div');
+        fab.id = 'lmNavFab';
+        fab.className = 'lm-nav-fab';
+        fab.innerHTML = ''
+            + '<div class="lm-nav-menu" id="lmNavMenu"></div>'
+            + '<button class="lm-nav-btn" id="lmNavBtn" title="导航菜单">&#9776;</button>';
+
+        document.body.appendChild(fab);
+
+        var btn = document.getElementById('lmNavBtn');
+        var menu = document.getElementById('lmNavMenu');
+
+        /* Toggle */
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            fab.classList.toggle('lm-nav-open');
+        });
+
+        /* Close on outside click */
+        document.addEventListener('click', function (e) {
+            if (!fab.contains(e.target)) {
+                fab.classList.remove('lm-nav-open');
+            }
+        });
+
+        /* Load menus */
+        loadNavMenus();
+    }
+
+    function loadNavMenus() {
+        var menu = document.getElementById('lmNavMenu');
+        if (!menu) return;
+
+        var headers = {};
+        var token = Auth.getToken();
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        fetch('/page/admin/api/nav/menus', { headers: headers })
+            .then(function (res) {
+                if (!res.ok) throw new Error('not ok');
+                return res.json();
+            })
+            .then(function (data) {
+                if (!data || !data.length) throw new Error('empty');
+                try { localStorage.setItem(NAV_MENU_KEY, JSON.stringify(data)); } catch (e) {}
+                renderNavMenu(data);
+            })
+            .catch(function () {
+                try {
+                    var cached = JSON.parse(localStorage.getItem(NAV_MENU_KEY));
+                    if (cached && cached.length) { renderNavMenu(cached); return; }
+                } catch (e) {}
+                renderNavMenu([
+                    { menu_name: '首页', path: '/home', parent_id: '0' },
+                    { menu_name: '后台管理', path: '/admin', parent_id: '0' }
+                ]);
+            });
+    }
+
+    function renderNavMenu(items) {
+        var menu = document.getElementById('lmNavMenu');
+        if (!menu) return;
+
+        /* Build tree from flat list */
+        var map = {};
+        var roots = [];
+        for (var i = 0; i < items.length; i++) {
+            var m = items[i];
+            m._children = [];
+            var key = m.id || m.menu_code || m.menu_name;
+            if (key) map[key] = m;
+        }
+        for (var i = 0; i < items.length; i++) {
+            var m = items[i];
+            var pid = m.parent_id && m.parent_id !== '0' ? m.parent_id : null;
+            if (pid && map[pid]) {
+                map[pid]._children.push(m);
+            } else {
+                roots.push(m);
+            }
+        }
+
+        menu.innerHTML = buildNavTree(roots);
+
+        /* Bind expand/collapse for groups */
+        var parents = menu.querySelectorAll('.lm-nav-parent');
+        for (var p = 0; p < parents.length; p++) {
+            parents[p].addEventListener('click', function (e) {
+                e.stopPropagation();
+                var group = this.parentNode;
+                group.classList.toggle('lm-nav-expanded');
+            });
+        }
+    }
+
+    function buildNavTree(nodes) {
+        var html = '';
+        for (var i = 0; i < nodes.length; i++) {
+            var m = nodes[i];
+            var name = escapeHtml(m.menu_name);
+            var icon = m.icon ? '<span style="margin-right:4px">' + escapeHtml(m.icon) + '</span>'
+                     : m.is_folder ? '<span style="margin-right:4px">📁</span>' : '';
+            if (m._children && m._children.length > 0) {
+                html += '<div class="lm-nav-group">';
+                html += '<button class="lm-nav-parent">' + icon + name + '<span class="arrow">&#9656;</span></button>';
+                html += '<div class="lm-nav-children">' + buildNavTree(m._children) + '</div>';
+                html += '</div>';
+            } else if (m.path) {
+                html += '<a class="lm-nav-item" href="' + escapeHtml(m.path) + '">' + icon + name + '</a>';
+            }
+        }
+        return html;
+    }
+
     /* ==================== INIT ==================== */
 
     function init() {
@@ -665,12 +946,16 @@ var LoginModal = (function () {
 
         injectStyles();
         injectModal();
+        injectNavFab();
 
-        /* Add "Login" button to header if not logged in, or show badge if logged in */
-        Auth.checkToken().then(function (valid) {
+        /* 校验 token，失败则尝试自动登录 */
+        Auth.validateOrAutoLogin().then(function (valid) {
             if (valid) {
                 var username = localStorage.getItem('username') || 'User';
                 renderUserBadge(username);
+                // 重新加载菜单（token 可能已刷新）
+                try { localStorage.removeItem(NAV_MENU_KEY); } catch (e) {}
+                loadNavMenus();
             } else {
                 addLoginButton();
             }
@@ -701,6 +986,14 @@ var LoginModal = (function () {
             btn.style.top = '14px';
             btn.style.right = '20px';
             btn.style.zIndex = '9999';
+            // 移动端适配 — 避开状态栏
+            if (window.innerWidth <= 480) {
+                btn.style.top = '58px';
+                btn.style.right = '12px';
+            } else if (window.innerWidth <= 768) {
+                btn.style.top = '60px';
+                btn.style.right = '16px';
+            }
             document.body.appendChild(btn);
         }
     }

@@ -120,20 +120,47 @@
         var passwordInput = document.getElementById('password');
         var passwordToggle = document.getElementById('passwordToggle');
         var rememberMe = document.getElementById('rememberMe');
+        var autoLogin = document.getElementById('autoLogin');
         var submitBtn = document.getElementById('submitBtn');
 
-        // ★ 恢复按钮状态的函数
+        // ==================== 恢复已保存的凭据 ====================
+        var saved = Auth.loadCredentials();
+        if (saved) {
+            if (saved.username) usernameInput.value = saved.username;
+            if (saved.password) passwordInput.value = saved.password;
+            rememberMe.checked = saved.remember;
+            autoLogin.checked = saved.autoLogin;
+
+            // 自动登录：有凭据且勾选了自动登录，直接提交
+            if (saved.autoLogin && saved.username && saved.password) {
+                setTimeout(function () { loginForm.dispatchEvent(new Event('submit')); }, 300);
+            }
+        }
+
+        // ==================== 联动逻辑 ====================
+        // 勾选自动登录 → 自动勾选记住密码
+        autoLogin.addEventListener('change', function () {
+            if (autoLogin.checked) rememberMe.checked = true;
+        });
+        // 取消记住密码 → 自动取消自动登录
+        rememberMe.addEventListener('change', function () {
+            if (!rememberMe.checked) autoLogin.checked = false;
+        });
+
+        // ==================== 恢复按钮状态 ====================
         function resetBtn() {
             submitBtn.disabled = false;
             submitBtn.textContent = '登 录';
         }
 
+        // ==================== 密码可见性切换 ====================
         passwordToggle.addEventListener('click', function () {
             var isPassword = passwordInput.type === 'password';
             passwordInput.type = isPassword ? 'text' : 'password';
             passwordToggle.classList.toggle('active', isPassword);
         });
 
+        // ==================== 登录提交 ====================
         loginForm.addEventListener('submit', function (e) {
             e.preventDefault();
 
@@ -146,7 +173,7 @@
             submitBtn.disabled = true;
             submitBtn.textContent = '登录中...';
 
-            fetch('/apilogin', {
+            fetch('/page/login/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: username, password: password })
@@ -156,34 +183,32 @@
                 })
                 .then(function (data) {
                     if (!data.token) {
-                        // ★ 登录失败，直接抛出错误，进入 catch
                         throw new Error(data.error || '登录失败，请检查用户名和密码');
                     }
 
                     // 存储认证信息
                     Auth.setAuth(data.token, data.username);
 
-                    if (rememberMe.checked) {
-                        localStorage.setItem('rememberMe', 'true');
+                    // 保存/清除凭据
+                    if (rememberMe.checked || autoLogin.checked) {
+                        Auth.saveCredentials(username, password, rememberMe.checked, autoLogin.checked);
                     } else {
-                        localStorage.removeItem('rememberMe');
+                        Auth.clearCredentials();
                     }
 
-                    // ★ 向后端确认 token 有效
-                    return fetch('/apicheck-token', {
+                    // 向后端确认 token 有效
+                    return fetch('/page/login/api/check-token', {
                         headers: { 'Authorization': 'Bearer ' + data.token }
                     });
                 })
                 .then(function (res) {
                     if (res && res.ok) {
-                        // ★ 双重确认成功，跳转
                         window.location.href = Auth.getRedirectUrl();
                     } else {
                         throw new Error('登录异常，请重试');
                     }
                 })
                 .catch(function (err) {
-                    // ★ 任何错误都恢复按钮
                     alert(err.message || '网络错误，请稍后重试');
                     resetBtn();
                 });

@@ -186,7 +186,7 @@
             submitBtn.disabled = true;
             submitBtn.textContent = '注册中...';
 
-            fetch('/api/register', {
+            fetch('/page/login/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: username, password: password })

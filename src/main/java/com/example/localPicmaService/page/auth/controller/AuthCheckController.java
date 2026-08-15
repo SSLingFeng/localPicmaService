@@ -1,4 +1,4 @@
-package com.example.localPicmaService.security.controller;
+package com.example.localPicmaService.page.auth.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +12,7 @@ import java.util.Map;
 @RestController
 public class AuthCheckController {
 
-    @GetMapping("/apicheck-token")
+    @GetMapping("/page/login/api/check-token")
     public ResponseEntity<?> checkToken(HttpServletRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated()

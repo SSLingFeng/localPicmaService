@@ -88,6 +88,13 @@
             <artifactId>postgresql</artifactId>
             <version>42.7.3</version> <!-- 或使用最新版本 -->
         </dependency>
+
+        <!-- AWS S3（兼容 RustFS / MinIO 等 S3 协议存储） -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.25.60</version>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

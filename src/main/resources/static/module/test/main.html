@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工具测试</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-ui@2.15.14/lib/theme-chalk/index.css">
+  <link rel="stylesheet" href="/public/res/module/test/style.css">
+</head>
+<body>
+<div id="app" v-cloak>
+
+  <!-- 页头 -->
+  <header class="page-header">
+    <h1><i class="el-icon-s-tools"></i> 工具测试</h1>
+  </header>
+
+  <!-- Tab 切换 -->
+  <section class="main-wrap">
+    <el-tabs v-model="activeTab" type="border-card">
+
+      <!-- ==================== RustFS 文件管理 ==================== -->
+      <el-tab-pane label="RustFS 文件管理" name="rustfs">
+        <!-- 上传区 -->
+        <div class="panel">
+          <h3 class="panel-title">上传文件</h3>
+          <el-form :inline="true" @submit.native.prevent class="upload-form">
+            <el-form-item label="存储路径">
+              <el-input v-model="uploadPath" placeholder="如 images/2025/pic.jpg" style="width:320px" />
+            </el-form-item>
+            <el-form-item>
+              <el-upload action="" :auto-upload="false" :show-file-list="false"
+                         :on-change="onFileSelected" :limit="1">
+                <el-button type="primary" icon="el-icon-upload2">选择文件</el-button>
+              </el-upload>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="success" icon="el-icon-s-promotion" :loading="uploading"
+                         :disabled="!selectedFile" @click="doUpload">上传</el-button>
+            </el-form-item>
+          </el-form>
+          <div v-if="selectedFile" class="file-hint">
+            已选: <strong>{{ selectedFile.name }}</strong> ({{ formatSize(selectedFile.size) }})
+          </div>
+        </div>
+
+        <!-- 文件列表 -->
+        <div class="panel">
+          <div class="panel-title-row">
+            <h3 class="panel-title">文件列表</h3>
+            <el-button size="mini" icon="el-icon-refresh" @click="loadFiles">刷新</el-button>
+          </div>
+          <el-table :data="fileList" stripe v-loading="filesLoading" style="width:100%"
+                    empty-text="暂无文件" size="small">
+            <el-table-column prop="file_name" label="文件名" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="file_format" label="格式" width="80" align="center" />
+            <el-table-column label="大小" width="100" align="center">
+              <template slot-scope="{ row }">{{ formatSize(row.file_size) }}</template>
+            </el-table-column>
+            <el-table-column prop="rustfs_key" label="RustFS Key" min-width="200" show-overflow-tooltip />
+            <el-table-column label="访问URL" min-width="200" show-overflow-tooltip>
+              <template slot-scope="{ row }">
+                <a :href="row.access_url" target="_blank" class="url-link">{{ row.access_url }}</a>
+              </template>
+            </el-table-column>
+            <el-table-column label="上传时间" width="160" align="center">
+              <template slot-scope="{ row }">{{ formatTime(row.create_date) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="160" align="center">
+              <template slot-scope="{ row }">
+                <el-button size="mini" type="primary" icon="el-icon-download"
+                           @click="doDownload(row.id)">下载</el-button>
+                <el-button size="mini" type="danger" icon="el-icon-delete"
+                           @click="doDelete(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+
+      <!-- ==================== Valkey 键值管理 ==================== -->
+      <el-tab-pane label="Valkey 键值管理" name="valkey">
+        <!-- 设置 -->
+        <div class="panel">
+          <h3 class="panel-title">设置键值</h3>
+          <el-form :inline="true" @submit.native.prevent>
+            <el-form-item label="键名">
+              <el-input v-model="vkSetKey" placeholder="key" style="width:200px" />
+            </el-form-item>
+            <el-form-item label="值">
+              <el-input v-model="vkSetValue" placeholder="value" style="width:280px" />
+            </el-form-item>
+            <el-form-item label="过期(秒)">
+              <el-input-number v-model="vkSetTtl" :min="0" :max="999999" style="width:130px" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" icon="el-icon-check" @click="doSet">设置</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <!-- 查询 -->
+        <div class="panel">
+          <h3 class="panel-title">查询键值</h3>
+          <el-form :inline="true" @submit.native.prevent>
+            <el-form-item label="键名">
+              <el-input v-model="vkGetKey" placeholder="输入要查询的 key" style="width:300px"
+                        @keyup.enter.native="doGet">
+                <el-button slot="append" icon="el-icon-search" @click="doGet" />
+              </el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="danger" icon="el-icon-delete" :disabled="!vkResult"
+                         @click="doDelKey">删除此键</el-button>
+            </el-form-item>
+          </el-form>
+
+          <!-- 查询结果 -->
+          <div v-if="vkResult" class="vk-result">
+            <el-descriptions :column="1" border size="small">
+              <el-descriptions-item label="键名">{{ vkResult.key }}</el-descriptions-item>
+              <el-descriptions-item label="类型">{{ vkResult.type }}</el-descriptions-item>
+              <el-descriptions-item label="过期时间">
+                <span v-if="vkResult.ttl === -1">永不过期</span>
+                <span v-else-if="vkResult.ttl === -2">已过期/不存在</span>
+                <span v-else>{{ vkResult.ttl }} 秒</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="值">
+                <pre class="vk-value">{{ vkResult.value }}</pre>
+              </el-descriptions-item>
+            </el-descriptions>
+          </div>
+          <div v-else-if="vkQueried" class="vk-empty">
+            <el-alert title="键不存在" type="info" :closable="false" show-icon />
+          </div>
+        </div>
+      </el-tab-pane>
+
+    </el-tabs>
+  </section>
+
+</div>
+
+<script src="/public/res/module/auth.js"></script>
+<script src="/public/res/module/login-modal.js"></script>
+<script src="https://unpkg.com/vue@2.7.16/dist/vue.min.js"></script>
+<script src="https://unpkg.com/element-ui@2.15.14/lib/index.js"></script>
+<script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
+<script src="/public/res/module/test/app.js"></script>
+<script>LoginModal.init();</script>
+</body>
+</html>

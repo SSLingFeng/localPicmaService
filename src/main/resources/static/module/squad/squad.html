@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>战队管理 - LocalPicma</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="/public/res/module/auth.js"></script>
+    <script src="/public/res/module/login-modal.js"></script>
+    <style>
+        :root { --bg:#08060a; --card:#110e14; --input:#1a161f; --border:#2a2432; --accent:#d4a24e; --text:#f0ece4; --text2:#8a8391; --text3:#5a5462; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'DM Mono',monospace; background:var(--bg); color:var(--text); min-height:100vh; }
+        .hdr { position:sticky; top:0; z-index:100; display:flex; align-items:center; padding:0 32px; height:56px; background:rgba(17,14,20,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); }
+        .hdr .brand { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--accent); white-space:nowrap; }
+        .hdr .spacer { flex:1; }
+        .back-fab { position:fixed; bottom:24px; right:24px; z-index:50; display:flex; align-items:center; gap:6px; padding:10px 18px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text2); text-decoration:none; font-size:13px; transition:all .25s; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+        .back-fab:hover { border-color:var(--accent); color:var(--accent); transform:translateY(-2px); }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .hdr { padding: 0 16px; }
+            .body { padding: 16px; }
+            .back-fab { bottom: 16px; right: 16px; padding: 8px 14px; font-size: 12px; }
+            .lm-nav-fab { bottom: 16px; }
+        }
+        @media (max-width: 480px) {
+            .back-fab { bottom: 12px; right: 12px; padding: 6px 12px; font-size: 11px; }
+            .lm-nav-fab { bottom: 12px; }
+        }
+        .body { max-width:1280px; margin:0 auto; padding:28px 24px; }
+        .tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px; }
+        .tabs button { background:none; border:none; padding:12px 24px; font-family:'DM Mono',monospace; font-size:14px; color:var(--text2); cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
+        .tabs button.active { color:var(--accent); border-bottom-color:var(--accent); }
+        .tabs button:hover { color:var(--accent); }
+        .sec-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+        .sec-title .num { font-size:24px; color:var(--accent); font-weight:500; }
+        table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+        th, td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:13px; white-space:nowrap; }
+        th { background:var(--input); color:var(--text2); font-weight:500; font-size:12px; letter-spacing:.03em; }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:var(--input); }
+        .btn { display:inline-flex; align-items:center; gap:4px; padding:6px 14px; font-family:'DM Mono',monospace; font-size:12px; border:1px solid var(--border); border-radius:6px; cursor:pointer; transition:all .2s; background:transparent; color:var(--text2); }
+        .btn:hover { border-color:var(--accent); color:var(--accent); }
+        .btn-pri { background:var(--accent); color:var(--bg); border-color:var(--accent); font-weight:600; }
+        .btn-pri:hover { background:#ddb593; border-color:#ddb593; color:var(--bg); }
+        .btn-del { border-color:#e74c3c; color:#e74c3c; }
+        .btn-del:hover { background:#e74c3c; color:#fff; }
+        .btn-sm { padding:4px 10px; font-size:11px; }
+        .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:500; }
+        .tag-ok { background:rgba(107,158,138,.15); color:#6b9e8a; }
+        .tag-off { background:rgba(90,84,98,.2); color:#8a8391; }
+        .overlay { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); opacity:0; visibility:hidden; transition:opacity .3s,visibility .3s; }
+        .overlay.show { opacity:1; visibility:visible; }
+        .modal { position:relative; width:100%; max-width:500px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:28px; transform:translateY(20px) scale(.97); transition:transform .35s cubic-bezier(.16,1,.3,1); box-shadow:0 24px 64px rgba(0,0,0,.55); }
+        .overlay.show .modal { transform:translateY(0) scale(1); }
+        .modal h3 { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; margin-bottom:20px; }
+        .modal .close { position:absolute; top:12px; right:14px; background:none; border:none; color:var(--text3); font-size:20px; cursor:pointer; }
+        .modal .close:hover { color:var(--text); }
+        .field { margin-bottom:14px; }
+        .field label { display:block; font-size:11px; color:var(--text3); margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+        .field input, .field select, .field textarea { width:100%; height:40px; padding:0 12px; font-family:'DM Mono',monospace; font-size:13px; color:var(--text); background:var(--input); border:1px solid var(--border); border-radius:8px; outline:none; transition:border-color .2s; }
+        .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--accent); }
+        .field textarea { height:60px; padding:8px 12px; resize:vertical; }
+        .field select { cursor:pointer; }
+        .field select option { background:var(--input); color:var(--text); }
+        .field-row { display:flex; gap:12px; }
+        .field-row .field { flex:1; }
+        .modal .actions { display:flex; gap:10px; margin-top:20px; justify-content:flex-end; }
+        .msg { text-align:center; font-size:12px; margin-top:10px; min-height:16px; }
+        .msg-ok { color:#6b9e8a; }
+        .msg-err { color:#e74c3c; }
+        .squad-sel { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+        .squad-sel select { height:36px; padding:0 10px; font-size:13px; background:var(--input); color:var(--text); border:1px solid var(--border); border-radius:6px; outline:none; min-width:200px; }
+        .squad-sel select:focus { border-color:var(--accent); }
+        .squad-sel select option { background:var(--input); }
+        .squad-sel .label { font-size:12px; color:var(--text3); }
+        .empty { text-align:center; color:var(--text3); padding:40px 0; font-size:13px; }
+    </style>
+</head>
+<body>
+<div id="app" v-cloak>
+    <header class="hdr">
+        <div class="brand">LocalPicma · 战队管理</div>
+        <div class="spacer"></div>
+    </header>
+    <a href="/admin" class="back-fab">← 后台管理</a>
+
+    <div class="body">
+        <div class="tabs">
+            <button :class="{active:tab==='squads'}" @click="switchTab('squads')">战队管理</button>
+            <button :class="{active:tab==='members'}" @click="switchTab('members')">成员管理</button>
+        </div>
+
+        <!-- ==================== 战队管理 ==================== -->
+        <div v-if="tab==='squads'">
+            <div class="sec-title"><span class="num">01</span> 战队管理</div>
+            <button class="btn btn-pri" style="margin-bottom:16px" @click="openSquad()">+ 新增战队</button>
+            <table>
+                <thead><tr><th>缩写</th><th>战队名称</th><th>英文标题</th><th>邮箱</th><th>网站</th><th>队徽</th><th>状态</th><th style="min-width:160px">操作</th></tr></thead>
+                <tbody>
+                    <tr v-for="s in squads" :key="s.id">
+                        <td><strong>{{ s.nick }}</strong></td>
+                        <td>{{ s.name }}</td>
+                        <td>{{ s.title }}</td>
+                        <td>{{ s.email }}</td>
+                        <td>{{ s.web }}</td>
+                        <td>{{ s.picture }}</td>
+                        <td style="text-align:center"><span class="tag" :class="s.enabled===1?'tag-ok':'tag-off'">{{ s.enabled===1?'启用':'禁用' }}</span></td>
+                        <td>
+                            <button class="btn btn-sm" @click="openSquad(s)">编辑</button>
+                            <button class="btn btn-sm btn-del" @click="delSquad(s)">删除</button>
+                        </td>
+                    </tr>
+                    <tr v-if="!squads.length"><td colspan="8" class="empty">暂无战队数据</td></tr>
+                </tbody>
+            </table>
+            <div style="margin-top:16px;font-size:11px;color:var(--text3)">
+                XML 访问地址：<code style="color:var(--accent)">GET /api/squad/{缩写}/squad.xml</code>（纯API，不经过页面）
+            </div>
+        </div>
+
+        <!-- ==================== 成员管理 ==================== -->
+        <div v-if="tab==='members'">
+            <div class="sec-title"><span class="num">02</span> 成员管理</div>
+            <div class="squad-sel">
+                <span class="label">选择战队：</span>
+                <select v-model="selSquadId" @change="loadMembers">
+                    <option value="">-- 请选择 --</option>
+                    <option v-for="s in squads" :key="s.id" :value="s.id">{{ s.nick }} - {{ s.name }}</option>
+                </select>
+                <button v-if="selSquadId" class="btn btn-pri" @click="openMember()">+ 新增成员</button>
+            </div>
+
+            <table v-if="selSquadId">
+                <thead><tr><th>账号</th><th>用户名称</th><th>Steam ID</th><th>游戏昵称</th><th>职位/ICQ</th><th>备注</th><th>排序</th><th>状态</th><th style="min-width:160px">操作</th></tr></thead>
+                <tbody>
+                    <tr v-for="m in members" :key="m.id">
+                        <td>{{ m.user_name || '-' }}</td>
+                        <td>{{ m.user_displayname || m.name }}</td>
+                        <td>{{ m.steam_id }}</td>
+                        <td><strong>{{ m.nick }}</strong></td>
+                        <td>{{ m.icq }}</td>
+                        <td>{{ m.remark }}</td>
+                        <td style="text-align:center">{{ m.sort_order }}</td>
+                        <td style="text-align:center"><span class="tag" :class="m.enabled===1?'tag-ok':'tag-off'">{{ m.enabled===1?'启用':'禁用' }}</span></td>
+                        <td>
+                            <button class="btn btn-sm" @click="openMember(m)">编辑</button>
+                            <button class="btn btn-sm btn-del" @click="delMember(m)">删除</button>
+                        </td>
+                    </tr>
+                    <tr v-if="!members.length"><td colspan="9" class="empty">该战队暂无成员</td></tr>
+                </tbody>
+            </table>
+            <div v-else class="empty">请先选择一个战队</div>
+        </div>
+    </div>
+
+    <!-- ==================== 战队弹窗 ==================== -->
+    <div class="overlay" :class="{show:squadDlg}" @mousedown.self="squadDlg=false">
+        <div class="modal">
+            <button class="close" @click="squadDlg=false">&times;</button>
+            <h3>{{ sf.id ? '编辑战队' : '新增战队' }}</h3>
+            <div class="field-row">
+                <div class="field"><label>战队缩写 *</label><input v-model="sf.nick" placeholder="如：TATG"></div>
+                <div class="field"><label>战队名称 *</label><input v-model="sf.name" placeholder="如：[三叉戟] 战术组"></div>
+            </div>
+            <div class="field"><label>英文标题</label><input v-model="sf.title" placeholder="Trident ACE Tactics Group"></div>
+            <div class="field-row">
+                <div class="field"><label>邮箱</label><input v-model="sf.email" placeholder="联系邮箱"></div>
+                <div class="field"><label>网站</label><input v-model="sf.web" placeholder="网站地址"></div>
+            </div>
+            <div class="field"><label>队徽文件名</label><input v-model="sf.picture" placeholder="如：logo.paa"></div>
+            <div class="field" v-if="sf.id"><label>启用</label><select v-model="sf.enabled"><option :value="1">启用</option><option :value="0">禁用</option></select></div>
+            <div class="actions"><button class="btn" @click="squadDlg=false">取消</button><button class="btn btn-pri" @click="saveSquad()">保存</button></div>
+            <div class="msg" :class="squadMsg.type">{{ squadMsg.text }}</div>
+        </div>
+    </div>
+
+    <!-- ==================== 成员弹窗 ==================== -->
+    <div class="overlay" :class="{show:memberDlg}" @mousedown.self="memberDlg=false">
+        <div class="modal">
+            <button class="close" @click="memberDlg=false">&times;</button>
+            <h3>{{ mf.id ? '编辑成员' : '新增成员' }}</h3>
+            <div class="field" v-if="!mf.id">
+                <label>选择用户 *</label>
+                <select v-model="mf.user_id" @change="onUserSelect">
+                    <option value="">-- 请选择用户 --</option>
+                    <option v-for="u in users" :key="u.id" :value="u.id">{{ u.user_name }} ({{ u.displayname }})</option>
+                </select>
+            </div>
+            <div class="field" v-if="mf.id">
+                <label>用户名称</label>
+                <input :value="mf.displayname || mf.name" disabled style="opacity:.6">
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Steam ID</label><input v-model="mf.steam_id" placeholder="76561198xxxxxxxxx"></div>
+                <div class="field"><label>游戏昵称 *</label><input v-model="mf.nick" placeholder="游戏内昵称"></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>职位/ICQ</label><input v-model="mf.icq" placeholder="如：战队长"></div>
+                <div class="field"><label>排序</label><input v-model.number="mf.sort_order" type="number" min="0"></div>
+            </div>
+            <div class="field"><label>备注</label><textarea v-model="mf.remark" placeholder="作战等级等备注信息"></textarea></div>
+            <div class="field" v-if="mf.id"><label>启用</label><select v-model="mf.enabled"><option :value="1">启用</option><option :value="0">禁用</option></select></div>
+            <div class="actions"><button class="btn" @click="memberDlg=false">取消</button><button class="btn btn-pri" @click="saveMember()">保存</button></div>
+            <div class="msg" :class="memberMsg.type">{{ memberMsg.text }}</div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+
+createApp({
+    setup() {
+        const tab = ref('squads');
+        const squads = ref([]);
+        const users = ref([]);
+        const selSquadId = ref('');
+        const members = ref([]);
+
+        const squadDlg = ref(false);
+        const sf = ref({});
+        const squadMsg = reactive({ text:'', type:'' });
+
+        const memberDlg = ref(false);
+        const mf = ref({});
+        const memberMsg = reactive({ text:'', type:'' });
+
+        const api = (method, url, data) => {
+            const h = {};
+            const t = Auth.getToken();
+            if (t) h['Authorization'] = 'Bearer ' + t;
+            const o = { method, url, headers: h };
+            if (data) { h['Content-Type'] = 'application/json'; o.data = data; }
+            return axios(o).then(r => r.data);
+        };
+
+        const loadSquads = () => api('GET','/page/squad/api/admin/list').then(d => squads.value = d||[]).catch(()=>{});
+        const loadUsers = () => api('GET','/page/squad/api/admin/users').then(d => users.value = d||[]).catch(()=>{});
+        const loadMembers = () => {
+            if (!selSquadId.value) { members.value = []; return; }
+            api('GET','/page/squad/api/admin/members?squad_id='+selSquadId.value).then(d => members.value = d||[]).catch(()=>{});
+        };
+
+        const switchTab = (name) => {
+            tab.value = name;
+            if (name==='squads') loadSquads();
+            if (name==='members') { loadSquads(); loadUsers(); if (selSquadId.value) loadMembers(); }
+        };
+
+        // Squad CRUD
+        const openSquad = (row) => {
+            sf.value = row ? {...row} : {nick:'',name:'',title:'',email:'',web:'',picture:'',enabled:1};
+            squadMsg.text = '';
+            squadDlg.value = true;
+        };
+        const saveSquad = () => {
+            const url = sf.value.id ? '/page/squad/api/admin/update' : '/page/squad/api/admin/add';
+            api('POST', url, sf.value).then(d => {
+                if (d.error) { squadMsg.text=d.error; squadMsg.type='msg-err'; return; }
+                squadDlg.value = false;
+                loadSquads();
+            });
+        };
+        const delSquad = (row) => {
+            if (!confirm('确定删除战队 "'+row.nick+'"？所有成员也会被删除。')) return;
+            api('POST','/page/squad/api/admin/delete',{id:row.id}).then(()=>{ loadSquads(); if (selSquadId.value===row.id) { selSquadId.value=''; members.value=[]; } });
+        };
+
+        // Member CRUD
+        const openMember = (row) => {
+            if (row) {
+                mf.value = {...row};
+            } else {
+                mf.value = {user_id:'',steam_id:'',nick:'',icq:'',remark:'',sort_order:0,enabled:1};
+            }
+            memberMsg.text = '';
+            memberDlg.value = true;
+        };
+        const onUserSelect = () => {
+            const uid = mf.value.user_id;
+            const u = users.value.find(x => x.id === uid);
+            if (u) {
+                mf.value.displayname = u.displayname;
+                mf.value.name = u.displayname;
+            }
+        };
+        const saveMember = () => {
+            if (!mf.value.id && !mf.value.user_id) { memberMsg.text='请选择用户'; memberMsg.type='msg-err'; return; }
+            if (!mf.value.nick) { memberMsg.text='游戏昵称不能为空'; memberMsg.type='msg-err'; return; }
+            const url = mf.value.id ? '/page/squad/api/admin/member/update' : '/page/squad/api/admin/member/add';
+            if (!mf.value.id) mf.value.squad_id = selSquadId.value;
+            api('POST', url, mf.value).then(d => {
+                if (d.error) { memberMsg.text=d.error; memberMsg.type='msg-err'; return; }
+                memberDlg.value = false;
+                loadMembers();
+            });
+        };
+        const delMember = (row) => {
+            if (!confirm('确定删除成员 "'+row.nick+'"？')) return;
+            api('POST','/page/squad/api/admin/member/delete',{id:row.id}).then(()=>loadMembers());
+        };
+
+        onMounted(() => {
+            LoginModal.init();
+            loadSquads();
+        });
+
+        return { tab, squads, users, selSquadId, members, switchTab,
+            squadDlg, sf, squadMsg, openSquad, saveSquad, delSquad, loadSquads,
+            memberDlg, mf, memberMsg, openMember, onUserSelect, saveMember, delMember, loadMembers };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
