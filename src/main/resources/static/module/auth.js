@@ -136,7 +136,9 @@ var Auth = (function() {
                 return false;
             })
             .catch(function() {
-                return true;
+                // 服务端不可达或 token 校验异常，视为无效，触发自动登录
+                clearAuth();
+                return false;
             });
     }
 

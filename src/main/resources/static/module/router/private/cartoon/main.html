@@ -45,6 +45,11 @@
           <el-option v-for="c in catOptions" :key="c" :label="c" :value="c" />
         </el-select>
       </el-form-item>
+      <el-form-item label="排序">
+        <el-select v-model="searchForm.sortField" placeholder="默认（时间）" clearable style="width:140px">
+          <el-option v-for="o in sortOptions" :key="o.value" :label="o.label" :value="o.value" />
+        </el-select>
+      </el-form-item>
       <el-form-item>
         <el-button type="primary" icon="el-icon-search" @click="doSearch">搜索</el-button>
         <el-button icon="el-icon-refresh-left" @click="doReset">重置</el-button>
@@ -173,11 +178,15 @@
   <transition name="reader-fade">
     <div v-if="readerVisible" class="reader-overlay">
       <button class="reader-close" @click="closeReader" title="关闭 (Esc)">&times;</button>
-      <div class="reader-scroll">
+      <div class="reader-scroll" @scroll="onReaderScroll" ref="readerScroll">
         <img v-for="(src, i) in readerImages" :key="i" :src="src" loading="lazy" class="reader-img" />
       </div>
+      <div class="reader-page-indicator">{{ readerCurrentPage }} / {{ readerImages.length }}</div>
     </div>
   </transition>
+
+  <!-- 返回按钮 -->
+  <a href="/home" class="back-fab">← 首页</a>
 
 </div>
 

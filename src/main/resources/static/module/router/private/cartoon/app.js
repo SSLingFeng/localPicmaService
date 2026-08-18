@@ -65,7 +65,12 @@
 
         data: function () {
             return {
-                searchForm: { title: '', type: '', tags: [], categories: [] },
+                searchForm: { title: '', type: '', tags: [], categories: [], sortField: '', sortOrder: 'desc' },
+                sortOptions: [
+                    { label: '默认（时间）', value: '' },
+                    { label: '标题', value: 'title' },
+                    { label: '副标题', value: 'subtitle' }
+                ],
                 typeOptions: [
                     { label: '漫画', value: '漫画' },
                     { label: 'Coser', value: 'coser' }
@@ -97,7 +102,8 @@
                 /* 全屏阅读器 */
                 readerVisible: false,
                 readerImages: [],
-                readerTitle: ''
+                readerTitle: '',
+                readerCurrentPage: 1
             };
         },
 
@@ -134,7 +140,9 @@
                         searchTitle:      self.searchForm.title || '',
                         searchType:       self.searchForm.type || '',
                         searchtags:       self.searchForm.tags || [],
-                        searchCategories: self.searchForm.categories || []
+                        searchCategories: self.searchForm.categories || [],
+                        sortField:        self.searchForm.sortField || '',
+                        sortOrder:        self.searchForm.sortOrder || 'desc'
                     }
                 };
 
@@ -189,7 +197,7 @@
             /* 搜索 / 重置 */
             doSearch: function () { this.currentPage = 1; this.fetchComics(); },
             doReset: function () {
-                this.searchForm = { title: '', type: '', tags: [], categories: [] };
+                this.searchForm = { title: '', type: '', tags: [], categories: [], sortField: '', sortOrder: 'desc' };
                 this.tagOptions = [];
                 this.catOptions = [];
                 this.currentPage = 1;
@@ -207,7 +215,8 @@
 
             /* 封面 URL */
             getCoverUrl: function (comic) {
-                return comic.cover_url || '';
+                if (comic.cover_key) return BASE + '/cover?key=' + comic.cover_key;
+                return '';
             },
 
             /* 标签颜色 */
@@ -247,17 +256,15 @@
                 self.chapterImages = [];
                 apiChapterImages(self.chapterComic.id, chapterIndex)
                     .then(function (data) {
-                        var count = data.imageCount || 0;
-                        if (!count) {
+                        var keys = data.imageKeys || [];
+                        if (!keys.length) {
                             self.$message.warning('该章节暂无图片');
                             return;
                         }
-                        // 根据页码生成图片 URL（不含文件路径，仅暴露 comicId + chapter + page）
-                        var urls = [];
-                        for (var i = 1; i <= count; i++) {
-                            urls.push(BASE + '/pageImage?comicId=' + data.comicId
-                                + '&chapter=' + data.chapterIndex + '&page=' + i);
-                        }
+                        // 根据 Valkey key 生成图片 URL
+                        var urls = keys.map(function (k) {
+                            return BASE + '/pageImage?key=' + k;
+                        });
                         self.chapterImages = urls;
                         // 全屏阅读
                         self.openReader(urls, chapterName);
@@ -270,6 +277,7 @@
             openReader: function (urls, chapterName) {
                 this.readerImages = urls;
                 this.readerTitle = (this.chapterComic ? this.chapterComic.title : '') + ' — ' + (chapterName || '');
+                this.readerCurrentPage = 1;
                 this.readerVisible = true;
                 document.body.style.overflow = 'hidden';
                 var self = this;
@@ -286,6 +294,21 @@
                     document.removeEventListener('keydown', this._onReaderKeydown);
                     this._onReaderKeydown = null;
                 }
+            },
+            /* 全屏阅读器 — 滚动追踪当前页 */
+            onReaderScroll: function (e) {
+                var container = e.target;
+                var imgs = container.querySelectorAll('.reader-img');
+                var scrollTop = container.scrollTop;
+                var viewH = container.clientHeight;
+                var current = 1;
+                for (var i = 0; i < imgs.length; i++) {
+                    var imgTop = imgs[i].offsetTop - container.offsetTop;
+                    if (imgTop <= scrollTop + viewH * 0.4) {
+                        current = i + 1;
+                    }
+                }
+                this.readerCurrentPage = current;
             },
 
             /* 图片查看器 */

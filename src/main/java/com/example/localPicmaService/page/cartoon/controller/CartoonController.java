@@ -5,10 +5,12 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.example.localPicmaService.config.SystemConfig;
 import com.example.localPicmaService.tool.SQLTool.SqlUtil;
+import com.example.localPicmaService.tool.Valkey.ValkeyUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/page/cartoon/api")
@@ -16,6 +18,9 @@ public class CartoonController {
 
     @Autowired
     private SystemConfig systemConfig;
+
+    @Autowired
+    private ValkeyUtil valkeyUtil;
 
     private static final Map<String, String> TYPE_DIR = Map.of(
             "漫画", "cartoon",
@@ -35,6 +40,8 @@ public class CartoonController {
                 params.getJSONArray("searchtags").toList(String.class) : List.of() : List.of();
         List<String> searchCats = params != null ? params.getJSONArray("searchCategories") != null ?
                 params.getJSONArray("searchCategories").toList(String.class) : List.of() : List.of();
+        String sortField = params != null ? params.getStr("sortField", "") : "";
+        String sortOrder = params != null ? params.getStr("sortOrder", "desc") : "desc";
 
         List<String> conditions = new ArrayList<>();
         Map<String, Object> queryParams = new LinkedHashMap<>();
@@ -73,9 +80,12 @@ public class CartoonController {
             if (cnt instanceof Number) total = ((Number) cnt).longValue();
         }
 
+        // 构建排序子句：白名单校验防注入
+        String orderBy = buildOrderBy(sortField, sortOrder);
+
         String dataSql = "SELECT id, type, title, author, chinese_team, description, "
-                + "tags, categories, pages_count, chapters, likes, comments, time "
-                + "FROM manga_source WHERE " + where + " ORDER BY create_date DESC LIMIT " + size + " OFFSET " + from;
+                + "tags, categories, pages_count, chapters, likes, comments, time, path, directory "
+                + "FROM manga_source WHERE " + where + " " + orderBy + " LIMIT " + size + " OFFSET " + from;
         List<Map<String, Object>> rows = SqlUtil.query(dataSql, queryParams);
 
         List<Map<String, Object>> items = new ArrayList<>();
@@ -84,8 +94,15 @@ public class CartoonController {
             item.put("tags", parseJsonArray(row.get("tags")));
             item.put("categories", parseJsonArray(row.get("categories")));
             item.put("chapters", parseJsonArray(row.get("chapters")));
-            // 封面 URL 仅暴露 ID，不暴露路径
-            item.put("cover_url", "/page/cartoon/api/cover?id=" + row.get("id"));
+
+            // 封面路径存入 Valkey，返回 cover_key
+            String coverValkeyKey = row.get("id") + "cover";
+            try {
+                String coverPath = resolveFilePath(row, "cover.jpg");
+                valkeyUtil.setEx(coverValkeyKey, coverPath, 3600);
+            } catch (Exception ignored) {}
+            item.put("cover_key", coverValkeyKey);
+
             items.add(item);
         }
 
@@ -95,50 +112,27 @@ public class CartoonController {
         return result;
     }
 
-    // ======================== 封面图片（ID 查询） ========================
+    // ======================== 封面图片（Valkey key 查询） ========================
 
     @GetMapping("/cover")
-    public void cover(@RequestParam String id,
+    public void cover(@RequestParam String key,
                       jakarta.servlet.http.HttpServletResponse response) throws Exception {
-        Map<String, Object> row = SqlUtil.row(
-                "SELECT type, path, title, directory FROM manga_source WHERE id = {?varchar|id?}",
-                Map.of("id", id));
-        if (row == null) { response.setStatus(404); return; }
-
-        String filePath = resolveFilePath(row, "cover.jpg");
+        String filePath = valkeyUtil.get(key);
+        if (filePath == null || filePath.isBlank()) { response.setStatus(404); return; }
         serveFile(filePath, response);
     }
 
-    // ======================== 章节图片（ID + 章节 + 页码） ========================
+    // ======================== 章节图片（Valkey key 查询） ========================
 
     @GetMapping("/pageImage")
-    public void pageImage(@RequestParam String comicId,
-                          @RequestParam int chapter,
-                          @RequestParam int page,
+    public void pageImage(@RequestParam String key,
                           jakarta.servlet.http.HttpServletResponse response) throws Exception {
-        Map<String, Object> row = SqlUtil.row(
-                "SELECT type, path, title, directory FROM manga_source WHERE id = {?varchar|id?}",
-                Map.of("id", comicId));
-        if (row == null) { response.setStatus(404); return; }
-
-        String dirPath = resolveFilePath(row, String.valueOf(chapter));
-        java.io.File dir = new java.io.File(dirPath);
-        if (!dir.isDirectory()) { response.setStatus(404); return; }
-
-        // 找到第 page 张图片（按文件名数字排序）
-        java.io.File[] files = dir.listFiles((d, n) -> n.matches("\\d+\\.(jpg|jpeg|png|webp)"));
-        if (files == null || files.length == 0) { response.setStatus(404); return; }
-
-        Arrays.sort(files, Comparator.comparingInt(f -> {
-            String name = f.getName().replaceAll("[^0-9]", "");
-            return name.isEmpty() ? 0 : Integer.parseInt(name);
-        }));
-
-        if (page < 1 || page > files.length) { response.setStatus(404); return; }
-        serveFile(files[page - 1].getAbsolutePath(), response);
+        String filePath = valkeyUtil.get(key);
+        if (filePath == null || filePath.isBlank()) { response.setStatus(404); return; }
+        serveFile(filePath, response);
     }
 
-    // ======================== 章节图片列表（返回页码数，不含路径） ========================
+    // ======================== 章节图片列表（返回 Valkey key 数组） ========================
 
     @PostMapping("/chapterImages")
     public Map<String, Object> chapterImages(@RequestBody JSONObject body) throws Exception {
@@ -164,20 +158,33 @@ public class CartoonController {
             }
         }
 
-        // 扫描章节目录，返回图片数量
+        // 扫描章节目录，生成 Valkey key 数组
         String dirPath = resolveFilePath(comic, String.valueOf(chapterIndex));
         java.io.File dir = new java.io.File(dirPath);
-        int imageCount = 0;
+        List<String> imageKeys = new ArrayList<>();
+
         if (dir.isDirectory()) {
             java.io.File[] files = dir.listFiles((d, n) -> n.matches("\\d+\\.(jpg|jpeg|png|webp)"));
-            if (files != null) imageCount = files.length;
+            if (files != null && files.length > 0) {
+                Arrays.sort(files, Comparator.comparingInt(f -> {
+                    String name = f.getName().replaceAll("[^0-9]", "");
+                    return name.isEmpty() ? 0 : Integer.parseInt(name);
+                }));
+                for (java.io.File f : files) {
+                    // key = comicId + "img" + 文件名去掉后缀
+                    String nameNoExt = f.getName().replaceFirst("\\.[^.]+$", "");
+                    String valkeyKey = comicId + "img" + nameNoExt;
+                    valkeyUtil.setEx(valkeyKey, f.getAbsolutePath(), 3600);
+                    imageKeys.add(valkeyKey);
+                }
+            }
         }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("chapterName", chapterName);
         result.put("chapterIndex", chapterIndex);
         result.put("comicId", comicId);
-        result.put("imageCount", imageCount);
+        result.put("imageKeys", imageKeys);
         return result;
     }
 
@@ -228,6 +235,32 @@ public class CartoonController {
     }
 
     // ======================== 内部工具 ========================
+
+    /** 排序字段白名单 */
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "time", "title", "subtitle", "create_date", "pages_count", "likes"
+    );
+
+    /**
+     * 构建 ORDER BY 子句
+     * sortField 为空或不在白名单内时，默认 time DESC
+     * 若 sortField 有效，则 sortField 排在前面，time DESC 作为次要排序
+     * 文本字段默认 ASC，数值/时间字段默认 DESC
+     */
+    private String buildOrderBy(String sortField, String sortOrder) {
+        if (sortField == null || !ALLOWED_SORT_FIELDS.contains(sortField)) {
+            return "ORDER BY time DESC";
+        }
+        // 文本字段默认升序，其余降序
+        boolean isText = "title".equals(sortField) || "subtitle".equals(sortField);
+        String dir;
+        if (sortOrder != null && !sortOrder.isBlank()) {
+            dir = "asc".equalsIgnoreCase(sortOrder) ? "ASC" : "DESC";
+        } else {
+            dir = isText ? "ASC" : "DESC";
+        }
+        return "ORDER BY " + sortField + " " + dir + ", time DESC";
+    }
 
     /**
      * 根据数据库记录拼接文件路径

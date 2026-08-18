@@ -255,7 +255,7 @@ var LoginModal = (function () {
 
             /* ========== NAV FAB ========== */
             + '.lm-nav-fab{'
-            +   'position:fixed;bottom:24px;left:0;z-index:50;'
+            +   'position:fixed;bottom:24px;left:0;z-index:10000;'
             +   'transform:translateX(0);'
             +   'transition:transform .35s cubic-bezier(.16,1,.3,1);'
             + '}'
@@ -527,12 +527,12 @@ var LoginModal = (function () {
             container.style.top = '14px';
             container.style.right = '20px';
             container.style.zIndex = '9999';
-            // 移动端适配 — 避开状态栏
+            // 移动端适配 — 避开状态栏，下移 48px
             if (window.innerWidth <= 480) {
-                container.style.top = '58px';
+                container.style.top = '62px';
                 container.style.right = '12px';
             } else if (window.innerWidth <= 768) {
-                container.style.top = '60px';
+                container.style.top = '62px';
                 container.style.right = '16px';
             }
             document.body.appendChild(container);
@@ -986,12 +986,12 @@ var LoginModal = (function () {
             btn.style.top = '14px';
             btn.style.right = '20px';
             btn.style.zIndex = '9999';
-            // 移动端适配 — 避开状态栏
+            // 移动端适配 — 避开状态栏，下移 48px
             if (window.innerWidth <= 480) {
-                btn.style.top = '58px';
+                btn.style.top = '62px';
                 btn.style.right = '12px';
             } else if (window.innerWidth <= 768) {
-                btn.style.top = '60px';
+                btn.style.top = '62px';
                 btn.style.right = '16px';
             }
             document.body.appendChild(btn);
