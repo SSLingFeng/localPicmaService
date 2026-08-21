@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>工具测试</title>
-  <link rel="stylesheet" href="https://unpkg.com/element-ui@2.15.14/lib/theme-chalk/index.css">
+  <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
   <link rel="stylesheet" href="/public/res/module/test/style.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
 
   <!-- 页头 -->
   <header class="page-header">
-    <h1><i class="el-icon-s-tools"></i> 工具测试</h1>
+    <h1><i class="el-icon-setting"></i> 工具测试</h1>
   </header>
 
   <!-- Tab 切换 -->
@@ -24,7 +24,7 @@
         <!-- 上传区 -->
         <div class="panel">
           <h3 class="panel-title">上传文件</h3>
-          <el-form :inline="true" @submit.native.prevent class="upload-form">
+          <el-form :inline="true" @submit.prevent class="upload-form">
             <el-form-item label="存储路径">
               <el-input v-model="uploadPath" placeholder="如 images/2025/pic.jpg" style="width:320px" />
             </el-form-item>
@@ -35,7 +35,7 @@
               </el-upload>
             </el-form-item>
             <el-form-item>
-              <el-button type="success" icon="el-icon-s-promotion" :loading="uploading"
+              <el-button type="success" icon="el-icon-promotion" :loading="uploading"
                          :disabled="!selectedFile" @click="doUpload">上传</el-button>
             </el-form-item>
           </el-form>
@@ -48,29 +48,29 @@
         <div class="panel">
           <div class="panel-title-row">
             <h3 class="panel-title">文件列表</h3>
-            <el-button size="mini" icon="el-icon-refresh" @click="loadFiles">刷新</el-button>
+            <el-button size="small" icon="el-icon-refresh" @click="loadFiles">刷新</el-button>
           </div>
           <el-table :data="fileList" stripe v-loading="filesLoading" style="width:100%"
                     empty-text="暂无文件" size="small">
             <el-table-column prop="file_name" label="文件名" min-width="180" show-overflow-tooltip />
             <el-table-column prop="file_format" label="格式" width="80" align="center" />
             <el-table-column label="大小" width="100" align="center">
-              <template slot-scope="{ row }">{{ formatSize(row.file_size) }}</template>
+              <template #default="{ row }">{{ formatSize(row.file_size) }}</template>
             </el-table-column>
             <el-table-column prop="rustfs_key" label="RustFS Key" min-width="200" show-overflow-tooltip />
             <el-table-column label="访问URL" min-width="200" show-overflow-tooltip>
-              <template slot-scope="{ row }">
+              <template #default="{ row }">
                 <a :href="row.access_url" target="_blank" class="url-link">{{ row.access_url }}</a>
               </template>
             </el-table-column>
             <el-table-column label="上传时间" width="160" align="center">
-              <template slot-scope="{ row }">{{ formatTime(row.create_date) }}</template>
+              <template #default="{ row }">{{ formatTime(row.create_date) }}</template>
             </el-table-column>
             <el-table-column label="操作" width="160" align="center">
-              <template slot-scope="{ row }">
-                <el-button size="mini" type="primary" icon="el-icon-download"
+              <template #default="{ row }">
+                <el-button size="small" type="primary" icon="el-icon-download"
                            @click="doDownload(row.id)">下载</el-button>
-                <el-button size="mini" type="danger" icon="el-icon-delete"
+                <el-button size="small" type="danger" icon="el-icon-delete"
                            @click="doDelete(row)">删除</el-button>
               </template>
             </el-table-column>
@@ -83,7 +83,7 @@
         <!-- 设置 -->
         <div class="panel">
           <h3 class="panel-title">设置键值</h3>
-          <el-form :inline="true" @submit.native.prevent>
+          <el-form :inline="true" @submit.prevent>
             <el-form-item label="键名">
               <el-input v-model="vkSetKey" placeholder="key" style="width:200px" />
             </el-form-item>
@@ -102,11 +102,13 @@
         <!-- 查询 -->
         <div class="panel">
           <h3 class="panel-title">查询键值</h3>
-          <el-form :inline="true" @submit.native.prevent>
+          <el-form :inline="true" @submit.prevent>
             <el-form-item label="键名">
               <el-input v-model="vkGetKey" placeholder="输入要查询的 key" style="width:300px"
-                        @keyup.enter.native="doGet">
-                <el-button slot="append" icon="el-icon-search" @click="doGet" />
+                        @keyup.enter="doGet">
+                <template #append>
+                  <el-button icon="el-icon-search" @click="doGet" />
+                </template>
               </el-input>
             </el-form-item>
             <el-form-item>
@@ -143,8 +145,9 @@
 
 <script src="/public/res/module/auth.js"></script>
 <script src="/public/res/module/login-modal.js"></script>
-<script src="https://unpkg.com/vue@2.7.16/dist/vue.min.js"></script>
-<script src="https://unpkg.com/element-ui@2.15.14/lib/index.js"></script>
+<script src="/public/res/module/upload.js"></script>
+<script src="/public/res/lib/vue.global.prod.js"></script>
+<script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
 <script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
 <script src="/public/res/module/test/app.js"></script>
 <script>LoginModal.init();</script>

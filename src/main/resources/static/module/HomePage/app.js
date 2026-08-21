@@ -2,8 +2,7 @@
    MAIN VUE APP
    ============================================= */
 
-new Vue({
-  el: '#app',
+Vue.createApp({
 
   data: function () {
     return {
@@ -41,6 +40,15 @@ new Vue({
     this.fetchAll();
     this.initScrollSpy();
     this.initSectionReveal();
+
+    // 安全网：确保加载状态最终会被关闭
+    var self = this;
+    setTimeout(function () {
+      self.loading.gaming = false;
+      self.loading.photo = false;
+      self.loading.life = false;
+      self.loading.work = false;
+    }, 5000);
   },
 
   methods: {
@@ -49,7 +57,10 @@ new Vue({
       var self = this;
 
       BlogAPI.fetchGames().then(function (data) {
-        self.games = data;
+        self.games = data || [];
+      }).catch(function () {
+        self.games = [];
+      }).finally(function () {
         self.loading.gaming = false;
       });
 
@@ -58,16 +69,26 @@ new Vue({
           self.featuredPhotos = data.featured || [];
           self.recentPhotos   = data.recent   || [];
         }
+      }).catch(function () {
+        self.featuredPhotos = [];
+        self.recentPhotos = [];
+      }).finally(function () {
         self.loading.photo = false;
       });
 
       BlogAPI.fetchLife().then(function (data) {
-        self.lifePosts = data;
+        self.lifePosts = data || [];
+      }).catch(function () {
+        self.lifePosts = [];
+      }).finally(function () {
         self.loading.life = false;
       });
 
       BlogAPI.fetchWork().then(function (data) {
-        self.projects = data;
+        self.projects = data || [];
+      }).catch(function () {
+        self.projects = [];
+      }).finally(function () {
         self.loading.work = false;
       });
     },
@@ -135,4 +156,4 @@ new Vue({
       });
     }
   }
-});
+}).use(ElementPlus).mount('#app');

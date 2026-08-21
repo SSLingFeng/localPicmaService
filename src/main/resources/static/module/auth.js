@@ -129,15 +129,21 @@ var Auth = (function() {
                         if (data.username) {
                             localStorage.setItem(USER_KEY, data.username);
                         }
+                        // 刷新 cookie，确保页面导航时可用
+                        document.cookie = 'AUTH_TOKEN=' + token + '; path=/; max-age=86400; SameSite=Lax';
                         return true;
                     });
                 }
-                clearAuth();
-                return false;
+                // 服务端明确返回 401，token 确实无效
+                if (res.status === 401) {
+                    clearAuth();
+                    return false;
+                }
+                // 其他错误（500 等），不清除认证，依赖 cookie 继续导航
+                return true;
             })
             .catch(function() {
-                // 服务端不可达或 token 校验异常，视为无效，触发自动登录
-                clearAuth();
+                // 网络不可达，不清除认证，依赖 cookie 继续页面导航
                 return false;
             });
     }

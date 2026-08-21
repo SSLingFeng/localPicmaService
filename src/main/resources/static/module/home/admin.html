@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>首页内容管理</title>
+  <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
+  <link rel="stylesheet" href="/public/res/module/home/admin.css">
+</head>
+<body>
+<div id="app" v-cloak>
+
+  <header class="page-header">
+    <h1><i class="el-icon-home-filled"></i> 首页内容管理</h1>
+  </header>
+
+  <section class="main-wrap">
+    <!-- 模块配置 -->
+    <div class="panel">
+      <h3 class="panel-title">模块显示配置</h3>
+      <el-table :data="configs" stripe size="small" style="width:100%">
+        <el-table-column prop="module_type" label="模块" width="140">
+          <template #default="{ row }">{{ moduleLabel(row.module_type) }}</template>
+        </el-table-column>
+        <el-table-column label="最多显示条数" width="200">
+          <template #default="{ row }">
+            <el-input-number v-model="row.max_display" :min="1" :max="50" size="small"
+                             @change="saveConfig(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="启用" width="100" align="center">
+          <template #default="{ row }">
+            <el-switch v-model="row.enabled" @change="saveConfig(row)" />
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+
+    <!-- Tab 切换模块内容 -->
+    <el-tabs v-model="activeModule" type="border-card">
+      <el-tab-pane v-for="m in modules" :key="m.key" :label="m.label" :name="m.key">
+        <div class="toolbar">
+          <el-button type="primary" size="small" icon="el-icon-plus" @click="openAdd">新增内容</el-button>
+          <el-button size="small" icon="el-icon-refresh" @click="loadContent">刷新</el-button>
+        </div>
+
+        <el-table :data="contentList" stripe size="small" v-loading="contentLoading" empty-text="暂无数据">
+          <el-table-column label="排序" width="70" align="center">
+            <template #default="{ row }">{{ row.sort_order }}</template>
+          </el-table-column>
+          <el-table-column label="标题" min-width="150">
+            <template #default="{ row }">{{ row.title || '（无标题）' }}</template>
+          </el-table-column>
+          <el-table-column label="内容摘要" min-width="250">
+            <template #default="{ row }">{{ row.content || '（无内容）' }}</template>
+          </el-table-column>
+          <el-table-column label="图片数" width="80" align="center">
+            <template #default="{ row }">
+              {{ parseImageData(row.data).length }}
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="150" align="center">
+            <template #default="{ row }">{{ formatTime(row.create_date) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="140" align="center" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" type="primary" icon="el-icon-edit" @click="openEdit(row)">编辑</el-button>
+              <el-button size="small" type="danger" icon="el-icon-delete" @click="doDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+    </el-tabs>
+  </section>
+
+  <!-- 编辑/新增弹窗 -->
+  <el-dialog :title="editMode === 'add' ? '新增内容' : '编辑内容'" v-model="editDlg" width="720px" top="6vh">
+    <el-form label-width="90px" size="small">
+      <el-form-item label="标题">
+        <el-input v-model="editForm.title" placeholder="输入标题" maxlength="100" show-word-limit />
+      </el-form-item>
+      <el-form-item label="发布时间">
+        <el-date-picker v-model="editForm.date_time" type="datetime"
+                        format="YYYY/MM/DD HH:mm" value-format="YYYY-MM-DD HH:mm"
+                        placeholder="选择发布时间" style="width:100%" />
+      </el-form-item>
+      <el-form-item label="排序号">
+        <el-input-number v-model="editForm.order_num" :min="0" :max="9999" />
+      </el-form-item>
+      <el-form-item label="内容">
+        <el-input type="textarea" v-model="editForm.content" :rows="4"
+                  placeholder="输入具体内容" maxlength="2000" show-word-limit />
+      </el-form-item>
+      <el-form-item label="上传图片">
+        <el-upload ref="imageUpload" action="" :auto-upload="false" :show-file-list="false"
+                   :on-change="onImageSelected" accept="image/*" multiple>
+          <el-button size="small" icon="el-icon-upload2">选择图片（可多选）</el-button>
+        </el-upload>
+        <div v-if="uploading" style="margin-top:6px">
+          <i class="el-icon-loading"></i> 上传中...
+        </div>
+      </el-form-item>
+      <el-form-item label="图片列表" v-if="editImages.length">
+        <el-table :data="editImages" size="small" border style="width:100%">
+          <el-table-column label="排序" width="80" align="center">
+            <template #default="{ row, $index }">
+              <el-input-number v-model="row.order_num" :min="0" :max="999" size="small"
+                               controls-position="right" style="width:60px"
+                               @change="sortImages" />
+            </template>
+          </el-table-column>
+          <el-table-column label="预览" width="80" align="center">
+            <template #default="{ row }">
+              <img :src="'/api/public/home-image?id=' + row.file_id"
+                   style="width:50px;height:50px;object-fit:cover;border-radius:4px" />
+            </template>
+          </el-table-column>
+          <el-table-column label="文件ID" min-width="200">
+            <template #default="{ row }">
+              <span style="font-size:11px;color:#999">{{ row.file_id }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" align="center">
+            <template #default="{ $index }">
+              <el-button size="small" type="danger" icon="el-icon-delete" @click="removeImage($index)" />
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="editDlg = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="doSave">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <a href="/home" class="back-fab">&larr; 首页</a>
+</div>
+
+<script src="/public/res/module/auth.js"></script>
+<script src="/public/res/module/login-modal.js"></script>
+<script src="/public/res/module/upload.js"></script>
+<script src="/public/res/lib/vue.global.prod.js"></script>
+<script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
+<script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
+<script src="/public/res/module/home/admin.js"></script>
+<script>LoginModal.init();</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package com.example.localPicmaService.tool.RustFs;
 
 import com.example.localPicmaService.tool.SQLTool.SqlUtil;
+import com.example.localPicmaService.tool.Valkey.ValkeyUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,13 @@ public class RustFsUtil {
 
     @Autowired
     private RustFsConfig rustFsConfig;
+
+    @Autowired
+    private ValkeyUtil valkeyUtil;
+
+    public boolean isConfigured() {
+        return rustFsConfig.isConfigured();
+    }
 
     // ======================== 上传 ========================
 
@@ -127,6 +135,29 @@ public class RustFsUtil {
                 "SELECT id, file_name, file_format, file_size, access_url, rustfs_key, create_date "
                         + "FROM rustfs_file WHERE id = {?varchar|id?}",
                 Map.of("id", dbId));
+    }
+
+    /**
+     * 根据 Valkey key 获取本地文件路径
+     * 用于漫画封面、章节图片等通过 Valkey 缓存的文件
+     *
+     * @param valkeyKey Valkey 键
+     * @return 本地文件路径，不存在返回 null
+     */
+    public String getFilePathByKey(String valkeyKey) throws Exception {
+        // 从 Valkey 读取路径
+        String path = valkeyUtil.get(valkeyKey);
+        if (path != null && !path.isBlank()) {
+            return path;
+        }
+        // fallback: 从 rustfs_file 表查
+        Map<String, Object> row = SqlUtil.row(
+                "SELECT access_url FROM rustfs_file WHERE rustfs_key = {?varchar|k?}",
+                Map.of("k", valkeyKey));
+        if (row != null && row.get("access_url") != null) {
+            return row.get("access_url").toString();
+        }
+        return null;
     }
 
     // ======================== 删除 ========================

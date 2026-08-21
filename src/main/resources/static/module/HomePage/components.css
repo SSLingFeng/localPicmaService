@@ -34,7 +34,7 @@
 
 /* Tag */
 .el-tag--info{background:var(--bg-elevated)!important;border-color:var(--border-light)!important;color:var(--text-secondary)!important}
-.el-tag--mini{font-size:var(--fs-tiny)!important}
+.el-tag--small{font-size:var(--fs-tiny)!important}
 
 /* Progress */
 .el-progress-bar__outer{background:var(--bg-elevated)!important;border-radius:4px!important}
@@ -49,7 +49,24 @@
 .el-skeleton__item{background:var(--bg-elevated)!important}
 
 /* Loading */
-.el-loading-mask{border-radius:var(--radius-lg)}
+/* Loading */
+.el-loading-mask{
+  border-radius:var(--radius-lg);
+  z-index:10!important;
+  background:rgba(10,10,10,0.85)!important;
+}
+.el-loading-mask .el-loading-spinner{
+  z-index:11;
+}
+/* Ensure loading text is visible */
+.el-loading-text{
+  color:var(--text-secondary)!important;
+}
+/* Ensure loading mask doesn't permanently cover content */
+.section-body{
+  position:relative;
+  min-height:100px;
+}
 .el-loading-spinner .el-loading-text{color:var(--text-secondary)!important}
 .el-loading-spinner .circular .path{stroke:var(--accent)!important}
 

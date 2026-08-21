@@ -2,8 +2,10 @@
    漫画管理 — 前端逻辑（接入本地 API）
    ================================================================= */
 
-;(function (Vue, axios) {
+;(function (Vue, axios, ElementPlus) {
     'use strict';
+
+    var ElMessage = ElementPlus.ElMessage;
 
     function debounce(fn, ms) {
         var timer;
@@ -60,8 +62,7 @@
        Vue 实例
        ============================================================= */
 
-    new Vue({
-        el: '#app',
+    Vue.createApp({
 
         data: function () {
             return {
@@ -153,7 +154,7 @@
                     })
                     .catch(function (err) {
                         console.error('获取漫画列表失败:', err);
-                        self.$message.error('加载失败，请稍后重试');
+                        ElMessage.error('加载失败，请稍后重试');
                         self.comicList = [];
                         self.total = 0;
                     })
@@ -258,7 +259,7 @@
                     .then(function (data) {
                         var keys = data.imageKeys || [];
                         if (!keys.length) {
-                            self.$message.warning('该章节暂无图片');
+                            ElMessage.warning('该章节暂无图片');
                             return;
                         }
                         // 根据 Valkey key 生成图片 URL
@@ -269,7 +270,7 @@
                         // 全屏阅读
                         self.openReader(urls, chapterName);
                     })
-                    .catch(function () { self.$message.error('加载章节失败'); })
+                    .catch(function () { ElMessage.error('加载章节失败'); })
                     .finally(function () { self.chapterLoading = false; });
             },
 
@@ -323,6 +324,6 @@
                 if (this.currentImageIndex < this.chapterImages.length - 1) this.currentImageIndex++;
             }
         }
-    });
+    }).use(ElementPlus).mount('#app');
 
-})(Vue, axios);
+})(Vue, axios, ElementPlus);

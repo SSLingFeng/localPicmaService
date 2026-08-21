@@ -1,8 +1,10 @@
-;(function (Vue, axios) {
+;(function (Vue, axios, ElementPlus) {
     'use strict';
 
-    new Vue({
-        el: '#app',
+    var ElMessage = ElementPlus.ElMessage;
+    var ElMessageBox = ElementPlus.ElMessageBox;
+
+    Vue.createApp({
 
         data: function () {
             return {
@@ -43,7 +45,7 @@
             doUpload: function () {
                 if (!this.selectedFile) return;
                 if (!this.uploadPath) {
-                    this.$message.warning('请输入存储路径');
+                    ElMessage.warning('请输入存储路径');
                     return;
                 }
                 var self = this;
@@ -57,15 +59,15 @@
                 }).then(function (res) {
                     var d = res.data;
                     if (d.success) {
-                        self.$message.success('上传成功');
+                        ElMessage.success('上传成功');
                         self.selectedFile = null;
                         self.uploadPath = '';
                         self.loadFiles();
                     } else {
-                        self.$message.error(d.error || '上传失败');
+                        ElMessage.error(d.error || '上传失败');
                     }
                 }).catch(function (e) {
-                    self.$message.error('请求失败: ' + (e.response && e.response.data && e.response.data.error || e.message));
+                    ElMessage.error('请求失败: ' + (e.response && e.response.data && e.response.data.error || e.message));
                 }).finally(function () {
                     self.uploading = false;
                 });
@@ -90,19 +92,19 @@
 
             doDelete: function (row) {
                 var self = this;
-                self.$confirm('确定删除文件 "' + row.file_name + '" ？', '确认', {
+                ElMessageBox.confirm('确定删除文件 "' + row.file_name + '" ？', '确认', {
                     type: 'warning'
                 }).then(function () {
                     axios.post('/page/rustfs/api/delete', { id: row.id }).then(function (res) {
                         var d = res.data;
                         if (d.success) {
-                            self.$message.success('已删除');
+                            ElMessage.success('已删除');
                             self.loadFiles();
                         } else {
-                            self.$message.error(d.error || '删除失败');
+                            ElMessage.error(d.error || '删除失败');
                         }
-                    }).catch(function (e) {
-                        self.$message.error('请求失败');
+                    }).catch(function () {
+                        ElMessage.error('请求失败');
                     });
                 }).catch(function () {});
             },
@@ -111,7 +113,7 @@
 
             doSet: function () {
                 var self = this;
-                if (!self.vkSetKey) { self.$message.warning('请输入键名'); return; }
+                if (!self.vkSetKey) { ElMessage.warning('请输入键名'); return; }
                 axios.post('/page/valkey/api/set', {
                     key: self.vkSetKey,
                     value: self.vkSetValue,
@@ -119,18 +121,18 @@
                 }).then(function (res) {
                     var d = res.data;
                     if (d.success) {
-                        self.$message.success('设置成功');
+                        ElMessage.success('设置成功');
                     } else {
-                        self.$message.error(d.error || '设置失败');
+                        ElMessage.error(d.error || '设置失败');
                     }
                 }).catch(function () {
-                    self.$message.error('请求失败');
+                    ElMessage.error('请求失败');
                 });
             },
 
             doGet: function () {
                 var self = this;
-                if (!self.vkGetKey) { self.$message.warning('请输入键名'); return; }
+                if (!self.vkGetKey) { ElMessage.warning('请输入键名'); return; }
                 self.vkResult = null;
                 self.vkQueried = false;
                 axios.get('/page/valkey/api/get', { params: { key: self.vkGetKey } }).then(function (res) {
@@ -150,20 +152,20 @@
 
             doDelKey: function () {
                 var self = this;
-                self.$confirm('确定删除键 "' + self.vkGetKey + '" ？', '确认', {
+                ElMessageBox.confirm('确定删除键 "' + self.vkGetKey + '" ？', '确认', {
                     type: 'warning'
                 }).then(function () {
                     axios.post('/page/valkey/api/del', { key: self.vkGetKey }).then(function (res) {
                         var d = res.data;
                         if (d.success) {
-                            self.$message.success('已删除');
+                            ElMessage.success('已删除');
                             self.vkResult = null;
                             self.vkQueried = false;
                         } else {
-                            self.$message.error(d.error || '删除失败');
+                            ElMessage.error(d.error || '删除失败');
                         }
                     }).catch(function () {
-                        self.$message.error('请求失败');
+                        ElMessage.error('请求失败');
                     });
                 }).catch(function () {});
             },
@@ -186,6 +188,6 @@
                     + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
             }
         }
-    });
+    }).use(ElementPlus).mount('#app');
 
-})(Vue, axios);
+})(Vue, axios, ElementPlus);

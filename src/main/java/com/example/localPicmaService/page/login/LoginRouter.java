@@ -37,4 +37,9 @@ public class LoginRouter {
     public ResponseEntity<byte[]> test() {
         return ResourceController.serveFile("static/module/test/main.html");
     }
+
+    @GetMapping("/home/admin")
+    public ResponseEntity<byte[]> homeAdmin() {
+        return ResourceController.serveFile("static/module/home/admin.html");
+    }
 }

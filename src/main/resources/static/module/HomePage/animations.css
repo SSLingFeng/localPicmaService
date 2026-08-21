@@ -20,9 +20,13 @@
 
 /* ---- Section reveal on scroll (triggered by JS) ---- */
 .section-block{
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity .65s var(--ease), transform .65s var(--ease);
+}
+.section-block.hidden{
   opacity:0;
   transform:translateY(30px);
-  transition:opacity .65s var(--ease), transform .65s var(--ease);
 }
 .section-block.visible{
   opacity:1;
@@ -63,9 +67,13 @@
 
 /* ---- Timeline item entrance ---- */
 .el-timeline-item{
+  opacity:1;
+  transform:translateX(0);
+  transition:opacity .5s var(--ease), transform .5s var(--ease);
+}
+.el-timeline-item.hidden{
   opacity:0;
   transform:translateX(-16px);
-  transition:opacity .5s var(--ease), transform .5s var(--ease);
 }
 .el-timeline-item.visible{
   opacity:1;

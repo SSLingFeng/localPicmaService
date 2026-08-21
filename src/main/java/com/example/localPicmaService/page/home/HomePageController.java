@@ -1,5 +1,8 @@
 package com.example.localPicmaService.page.home;
 
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONUtil;
+import com.example.localPicmaService.tool.SQLTool.SqlUtil;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,78 +14,101 @@ import java.util.*;
 public class HomePageController {
 
     @GetMapping("/games")
-    public List<Map<String, Object>> getGames() {
-        // TODO: 替换为数据库查询
-        List<Map<String, Object>> list = new ArrayList<>();
-        Map<String, Object> game1 = new LinkedHashMap<>();
-        game1.put("id", 1);
-        game1.put("title", "艾尔登法环");
-        game1.put("cover", "https://picsum.photos/seed/eldenring/480/280");
-        game1.put("platforms", List.of("PS5", "PC"));
-        game1.put("rating", 4.5);
-        game1.put("playtime", "128h");
-        game1.put("description", "交界地的探索令人沉醉，每一处废墟都藏着惊喜。");
-        game1.put("tags", List.of("开放世界", "动作RPG", "魂系"));
-        list.add(game1);
-        return list;
+    public List<Map<String, Object>> getGames() throws Exception {
+        return fetchModule("games");
     }
 
     @GetMapping("/photos")
-    public Map<String, Object> getPhotos() {
-        // TODO: 替换为数据库查询
+    public Map<String, Object> getPhotos() throws Exception {
+        int limit = getConfigMaxDisplay("photos");
+        if (!isEnabled("photos")) return Map.of("featured", List.of(), "recent", List.of());
+
+        List<Map<String, Object>> featured = fetchModuleRows("photos_featured", limit);
+        List<Map<String, Object>> recent = fetchModuleRows("photos_recent", limit);
+
         Map<String, Object> result = new LinkedHashMap<>();
-        List<Map<String, Object>> featured = new ArrayList<>();
-        Map<String, Object> p1 = new LinkedHashMap<>();
-        p1.put("id", 1);
-        p1.put("url", "https://picsum.photos/seed/mountain1/960/540");
-        p1.put("title", "贡嘎银河");
-        p1.put("location", "四川·贡嘎");
-        featured.add(p1);
-        List<Map<String, Object>> recent = new ArrayList<>();
-        Map<String, Object> r1 = new LinkedHashMap<>();
-        r1.put("id", 4);
-        r1.put("url", "https://picsum.photos/seed/street1/400/400");
-        r1.put("location", "成都·太古里");
-        recent.add(r1);
         result.put("featured", featured);
         result.put("recent", recent);
         return result;
     }
 
     @GetMapping("/life")
-    public List<Map<String, Object>> getLife() {
-        // TODO: 替换为数据库查询
-        List<Map<String, Object>> list = new ArrayList<>();
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("id", 1);
-        item.put("date", "2025-05-10");
-        item.put("title", "周末烘焙实验");
-        item.put("category", "日常");
-        item.put("tagType", "");
-        item.put("color", "#c8956c");
-        item.put("content", "第一次尝试做可颂，虽然层次还不够分明，但黄油香气弥漫整个厨房的幸福感是真实的。");
-        item.put("images", List.of("https://picsum.photos/seed/bread1/200/200", "https://picsum.photos/seed/bread2/200/200"));
-        item.put("important", false);
-        list.add(item);
-        return list;
+    public List<Map<String, Object>> getLife() throws Exception {
+        return fetchModule("life");
     }
 
     @GetMapping("/work")
-    public List<Map<String, Object>> getWork() {
-        // TODO: 替换为数据库查询
-        List<Map<String, Object>> list = new ArrayList<>();
-        Map<String, Object> proj = new LinkedHashMap<>();
-        proj.put("id", 1);
-        proj.put("name", "智能运维平台 v2.0");
-        proj.put("status", "进行中");
-        proj.put("statusType", "warning");
-        proj.put("description", "基于 Spring Boot + Vue 的企业级 AIOps 平台。");
-        proj.put("progress", 68);
-        proj.put("progressColor", "#c8956c");
-        proj.put("techStack", List.of("Spring Boot", "Vue 3", "Elasticsearch", "Flink", "Docker"));
-        proj.put("dateRange", "2024.11 — 至今");
-        proj.put("link", "#");
-        list.add(proj);
-        return list;
+    public List<Map<String, Object>> getWork() throws Exception {
+        return fetchModule("work");
+    }
+
+    // ======================== 内部工具 ========================
+
+    private List<Map<String, Object>> fetchModule(String moduleType) throws Exception {
+        int limit = getConfigMaxDisplay(moduleType);
+        if (!isEnabled(moduleType)) return List.of();
+        return fetchModuleRows(moduleType, limit);
+    }
+
+    private List<Map<String, Object>> fetchModuleRows(String moduleType, int limit) throws Exception {
+        List<Map<String, Object>> rows = SqlUtil.query(
+                "SELECT id, title, content, order_num, date_time, data::text as data, sort_order, create_date "
+                        + "FROM home_content WHERE module_type = {?varchar|m?} ORDER BY sort_order, id LIMIT " + limit,
+                Map.of("m", moduleType), limit);
+        if (rows == null) return List.of();
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", row.get("id"));
+            item.put("title", row.get("title"));
+            item.put("content", row.get("content"));
+            item.put("order_num", row.get("order_num"));
+            item.put("date_time", row.get("date_time"));
+            item.put("sort_order", row.get("sort_order"));
+            item.put("create_date", row.get("create_date"));
+
+            // 解析图片数组 data::[{file_id, order_num}]
+            Object data = row.get("data");
+            List<String> imageUrls = new ArrayList<>();
+            if (data != null) {
+                try {
+                    JSONArray arr = JSONUtil.parseArray(data.toString());
+                    // 按 order_num 排序
+                    arr.sort(Comparator.comparingInt(o -> ((cn.hutool.json.JSONObject) o).getInt("order_num", 0)));
+                    for (int i = 0; i < arr.size(); i++) {
+                        String fileId = arr.getJSONObject(i).getStr("file_id");
+                        if (fileId != null && !fileId.isEmpty()) {
+                            imageUrls.add("/api/public/home-image?id=" + fileId);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            item.put("images", imageUrls);
+            result.add(item);
+        }
+        return result;
+    }
+
+    private int getConfigMaxDisplay(String moduleType) throws Exception {
+        Map<String, Object> row = SqlUtil.row(
+                "SELECT max_display FROM home_module_config WHERE module_type = {?varchar|m?}",
+                Map.of("m", moduleType));
+        if (row != null && row.get("max_display") instanceof Number) {
+            return ((Number) row.get("max_display")).intValue();
+        }
+        return 4;
+    }
+
+    private boolean isEnabled(String moduleType) throws Exception {
+        Map<String, Object> row = SqlUtil.row(
+                "SELECT enabled FROM home_module_config WHERE module_type = {?varchar|m?}",
+                Map.of("m", moduleType));
+        if (row != null) {
+            Object enabled = row.get("enabled");
+            if (enabled instanceof Boolean) return (Boolean) enabled;
+            if (enabled instanceof Number) return ((Number) enabled).intValue() != 0;
+        }
+        return true;
     }
 }

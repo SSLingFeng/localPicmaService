@@ -6,7 +6,7 @@
   <title>漫画管理</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/element-ui@2.15.14/lib/theme-chalk/index.css">
+  <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
   <link rel="stylesheet" href="/public/res/module/router/private/cartoon/style.css">
 </head>
 
@@ -15,16 +15,16 @@
 
   <!-- 页头 -->
   <header class="page-header">
-    <h1 class="site-title"><i class="el-icon-notebook-2"></i> 漫画管理</h1>
+    <h1 class="site-title"><i class="el-icon-notebook"></i> 漫画管理</h1>
     <p class="site-subtitle">共收录 <strong>{{ total }}</strong> 部作品</p>
   </header>
 
   <!-- 搜索栏 -->
   <section class="search-panel">
-    <el-form :inline="true" :model="searchForm" class="search-form" @submit.native.prevent="doSearch">
+    <el-form :inline="true" :model="searchForm" class="search-form" @submit.prevent="doSearch">
       <el-form-item label="标题">
         <el-input v-model="searchForm.title" placeholder="输入漫画标题..." clearable prefix-icon="el-icon-search"
-                  @keyup.enter.native="doSearch" style="width:220px" />
+                  @keyup.enter="doSearch" style="width:220px" />
       </el-form-item>
       <el-form-item label="类型">
         <el-select v-model="searchForm.type" placeholder="全部类型" clearable style="width:140px">
@@ -83,12 +83,12 @@
             <span v-if="comic.chinese_team" class="meta-item"><i class="el-icon-s-custom"></i>{{ comic.chinese_team }}</span>
           </div>
           <div class="comic-tags" v-if="comic.tags && comic.tags.length">
-            <el-tag v-for="tag in comic.tags.slice(0,4)" :key="'t-'+tag" size="mini" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
-            <el-tag v-if="comic.tags.length > 4" size="mini" type="info" effect="dark">+{{ comic.tags.length - 4 }}</el-tag>
+            <el-tag v-for="tag in comic.tags.slice(0,4)" :key="'t-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
+            <el-tag v-if="comic.tags.length > 4" size="small" type="info" effect="dark">+{{ comic.tags.length - 4 }}</el-tag>
           </div>
           <div class="comic-cats" v-if="comic.categories && comic.categories.length">
-            <el-tag v-for="cat in comic.categories.slice(0,3)" :key="'c-'+cat" size="mini" effect="plain" type="info">{{ cat }}</el-tag>
-            <el-tag v-if="comic.categories.length > 3" size="mini" effect="plain" type="info">+{{ comic.categories.length - 3 }}</el-tag>
+            <el-tag v-for="cat in comic.categories.slice(0,3)" :key="'c-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
+            <el-tag v-if="comic.categories.length > 3" size="small" effect="plain" type="info">+{{ comic.categories.length - 3 }}</el-tag>
           </div>
         </div>
       </div>
@@ -99,28 +99,28 @@
   <!-- 分页 -->
   <footer class="pagination-bar" v-if="total > 0">
     <div class="pagination-inner">
-      <el-tooltip content="首页" placement="top" :open-delay="500">
-        <el-button class="pg-btn" icon="el-icon-d-arrow-left" size="small" :disabled="currentPage<=1" @click="goPage(1)" />
+      <el-tooltip content="首页" placement="top" :show-after="500">
+        <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(1)">&laquo;</el-button>
       </el-tooltip>
-      <el-tooltip content="上一页" placement="top" :open-delay="500">
-        <el-button class="pg-btn" icon="el-icon-arrow-left" size="small" :disabled="currentPage<=1" @click="goPage(currentPage-1)" />
+      <el-tooltip content="上一页" placement="top" :show-after="500">
+        <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(currentPage-1)">&lsaquo;</el-button>
       </el-tooltip>
       <div class="pg-jump">
         <el-input-number v-model="pageInput" :min="1" :max="totalPages" size="small" :controls="false" readonly @change="onPageJump" />
         <span class="pg-slash">/</span>
         <span class="pg-total">{{ totalPages }}</span>
       </div>
-      <el-tooltip content="下一页" placement="top" :open-delay="500">
-        <el-button class="pg-btn" icon="el-icon-arrow-right" size="small" :disabled="currentPage>=totalPages" @click="goPage(currentPage+1)" />
+      <el-tooltip content="下一页" placement="top" :show-after="500">
+        <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(currentPage+1)">&rsaquo;</el-button>
       </el-tooltip>
-      <el-tooltip content="最后一页" placement="top" :open-delay="500">
-        <el-button class="pg-btn" icon="el-icon-d-arrow-right" size="small" :disabled="currentPage>=totalPages" @click="goPage(totalPages)" />
+      <el-tooltip content="最后一页" placement="top" :show-after="500">
+        <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(totalPages)">&raquo;</el-button>
       </el-tooltip>
     </div>
   </footer>
 
   <!-- 漫画详情 & 章节弹窗 -->
-  <el-dialog :visible.sync="chapterDlg" width="700px" top="4vh" custom-class="comic-detail-dlg">
+  <el-dialog v-model="chapterDlg" width="700px" top="4vh" custom-class="comic-detail-dlg">
     <div v-if="chapterComic" class="comic-detail">
       <!-- 头部：封面 + 基本信息 -->
       <div class="detail-header">
@@ -136,15 +136,15 @@
             <span v-if="chapterComic.author"><i class="el-icon-user"></i>{{ chapterComic.author }}</span>
             <span v-if="chapterComic.chinese_team"><i class="el-icon-s-custom"></i>{{ chapterComic.chinese_team }}</span>
             <span><i class="el-icon-document"></i>{{ chapterComic.pages_count }}P</span>
-            <span v-if="chapterComic.time"><i class="el-icon-time"></i>{{ formatTime(chapterComic.time) }}</span>
+            <span v-if="chapterComic.time"><i class="el-icon-clock"></i>{{ formatTime(chapterComic.time) }}</span>
           </div>
           <div class="detail-tags" v-if="chapterComic.tags && chapterComic.tags.length">
             <span class="detail-label">标签</span>
-            <el-tag v-for="tag in chapterComic.tags" :key="'dt-'+tag" size="mini" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
+            <el-tag v-for="tag in chapterComic.tags" :key="'dt-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
           </div>
           <div class="detail-cats" v-if="chapterComic.categories && chapterComic.categories.length">
             <span class="detail-label">类别</span>
-            <el-tag v-for="cat in chapterComic.categories" :key="'dc-'+cat" size="mini" effect="plain" type="info">{{ cat }}</el-tag>
+            <el-tag v-for="cat in chapterComic.categories" :key="'dc-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
           </div>
         </div>
       </div>
@@ -163,7 +163,7 @@
   </el-dialog>
 
   <!-- 图片查看器 -->
-  <el-dialog :visible.sync="imageViewerVisible" width="90%" top="3vh" custom-class="image-viewer-dlg">
+  <el-dialog v-model="imageViewerVisible" width="90%" top="3vh" custom-class="image-viewer-dlg">
     <div style="text-align:center;position:relative">
       <img :src="chapterImages[currentImageIndex]" style="max-width:100%;max-height:80vh;border-radius:4px" />
       <div style="margin-top:8px;color:var(--text-muted);font-size:13px">{{ currentImageIndex + 1 }} / {{ chapterImages.length }}</div>
@@ -192,8 +192,8 @@
 
 <script src="/public/res/module/auth.js"></script>
 <script src="/public/res/module/login-modal.js"></script>
-<script src="https://unpkg.com/vue@2.7.16/dist/vue.min.js"></script>
-<script src="https://unpkg.com/element-ui@2.15.14/lib/index.js"></script>
+<script src="/public/res/lib/vue.global.prod.js"></script>
+<script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
 <script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
 <script src="/public/res/module/router/private/cartoon/app.js"></script>
 <script>LoginModal.init();</script>

@@ -11,8 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Nunito+Sans:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@400;600;700&display=swap"
           rel="stylesheet">
 
-    <!-- Element UI -->
-    <link rel="stylesheet" href="https://unpkg.com/element-ui@2.15.14/lib/theme-chalk/index.css">
+    <!-- Element Plus -->
+    <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
 
 
     <script src="/public/res/module/auth.js"></script>
@@ -100,7 +100,7 @@
                          class="section-body">
 
                         <el-skeleton :rows="6" animated :loading="loading.gaming">
-                            <template slot="template">
+                            <template #template>
                                 <el-row :gutter="16">
                                     <el-col :span="8" v-for="n in 3" :key="n" style="margin-bottom:16px">
                                         <el-skeleton-item variant="image"
@@ -122,14 +122,14 @@
                                                  class="game-card anim-fade-in-up">
                                             <div class="game-cover">
                                                 <el-image :src="game.cover" fit="cover" lazy>
-                                                    <div slot="error" class="img-slot"><i
-                                                            class="el-icon-picture-outline"></i></div>
-                                                    <div slot="placeholder" class="img-slot"><i
-                                                            class="el-icon-loading"></i></div>
+                                                    <template #error><div class="img-slot"><i
+                                                            class="el-icon-picture-outline"></i></div></template>
+                                                    <template #placeholder><div class="img-slot"><i
+                                                            class="el-icon-loading"></i></div></template>
                                                 </el-image>
                                                 <div class="game-platform-badge">
                                                     <el-tag v-for="p in game.platforms" :key="p"
-                                                            size="mini" effect="dark" type="warning">{{ p }}
+                                                            size="small" effect="dark" type="warning">{{ p }}
                                                     </el-tag>
                                                 </div>
                                             </div>
@@ -188,7 +188,7 @@
                                      v-if="featuredPhotos.length">
                             <el-carousel-item v-for="p in featuredPhotos" :key="p.id">
                                 <el-image :src="p.url" fit="cover" class="carousel-img">
-                                    <div slot="error" class="img-slot"><i class="el-icon-picture-outline"></i></div>
+                                    <template #error><div class="img-slot"><i class="el-icon-picture-outline"></i></div></template>
                                 </el-image>
                                 <div class="carousel-caption">
                                     <h4>{{ p.title }}</h4>
@@ -202,7 +202,7 @@
                             <div class="photo-grid-item" v-for="p in recentPhotos" :key="p.id">
                                 <el-image :src="p.url" fit="cover"
                                           :preview-src-list="[p.url]" lazy>
-                                    <div slot="error" class="img-slot"><i class="el-icon-picture-outline"></i></div>
+                                    <template #error><div class="img-slot"><i class="el-icon-picture-outline"></i></div></template>
                                 </el-image>
                                 <div class="photo-overlay">
                                     <el-tooltip :content="p.location" placement="top">
@@ -252,7 +252,7 @@
                                         <el-avatar :size="32" :src="item.avatar" icon="el-icon-user"></el-avatar>
                                         <div class="life-card-meta">
                                             <h4>{{ item.title }}</h4>
-                                            <el-tag :type="item.tagType" size="mini" effect="plain">{{ item.category
+                                            <el-tag :type="item.tagType" size="small" effect="plain">{{ item.category
                                                 }}
                                             </el-tag>
                                         </div>
@@ -293,11 +293,11 @@
 
                         <el-collapse v-model="activeProject" accordion v-if="projects.length">
                             <el-collapse-item v-for="proj in projects" :key="proj.id" :name="proj.id">
-                                <template slot="title">
+                                <template #title>
                                     <div class="work-collapse-title">
                                         <el-badge :type="proj.statusType" is-dot></el-badge>
                                         <span class="work-name">{{ proj.name }}</span>
-                                        <el-tag size="mini" :type="proj.statusType" effect="dark">{{ proj.status }}
+                                        <el-tag size="small" :type="proj.statusType" effect="dark">{{ proj.status }}
                                         </el-tag>
                                     </div>
                                 </template>
@@ -392,9 +392,9 @@
 </div>
 
 <!-- ============ SCRIPTS ============ -->
-<script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.min.js"></script>
-<script src="https://unpkg.com/element-ui@2.15.14/lib/index.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/axios@1.6.7/dist/axios.min.js"></script>
+<script src="/public/res/lib/vue.global.prod.js"></script>
+<script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
+<script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
 <script src="/public/res/module/HomePage/api.js"></script>
 <script src="/public/res/module/HomePage/app.js"></script>
 <script>LoginModal.init();</script>

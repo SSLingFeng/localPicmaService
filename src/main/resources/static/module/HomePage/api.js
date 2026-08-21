@@ -11,7 +11,7 @@ var BlogAPI = (function () {
 
   /* ---------- 通用请求 ---------- */
   function get(endpoint) {
-    return axios.get(BASE_URL + endpoint)
+    return axios.get(BASE_URL + endpoint, { timeout: 3000 })
       .then(function (res) { return res.data; })
       .catch(function (err) {
         console.warn('[BlogAPI] 请求失败 ' + endpoint, err);

@@ -43,6 +43,8 @@ public class SecurityConfig {
                                 "/page/cartoon/api/cover",
                                 "/page/cartoon/api/pageImage",
                                 "/page/rustfs/api/download",
+                                "/api/public/file",
+                                "/api/public/home-image",
                                 "/api/squad/**",
                                 "/health").permitAll()
                         .anyRequest().access(superAdminOrAuthenticated())
@@ -50,7 +52,15 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             System.out.println(">>> 403: " + request.getMethod() + " " + request.getRequestURI());
-                            response.sendError(HttpServletResponse.SC_FORBIDDEN, "未认证");
+                            // API 请求返回 JSON，页面请求跳转自定义 403 页
+                            String uri = request.getRequestURI();
+                            if (uri.startsWith("/page/") || uri.startsWith("/api/")) {
+                                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                response.setContentType("application/json;charset=UTF-8");
+                                response.getWriter().write("{\"success\":false,\"error\":\"未授权，请先登录\"}");
+                            } else {
+                                response.sendRedirect("/public/res/error/error.html?code=403");
+                            }
                         })
                 )
                 .sessionManagement(session ->
