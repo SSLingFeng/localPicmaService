@@ -7,6 +7,10 @@ logging:
     root: info
     com.example.localPicmaService.tool.SQLTool.SqlUtil: debug
 spring:
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
   datasource:
     url: jdbc:postgresql://127.0.0.1:5432/database
     username:
