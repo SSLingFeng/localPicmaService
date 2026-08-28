@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>漫画章节压缩工具</title>
+  <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
+</head>
+<body>
+<div id="app" v-cloak style="max-width:800px;margin:40px auto;padding:0 20px">
+  <h1 style="color:#e8e4dc;margin-bottom:24px">漫画章节压缩工具</h1>
+
+  <div style="background:#111122;border:1px solid #252545;border-radius:8px;padding:20px;margin-bottom:20px">
+    <el-row :gutter="16" align="middle">
+      <el-col :span="8">
+        <el-button type="primary" :disabled="status.running" @click="startTask(false)">
+          开始压缩
+        </el-button>
+        <el-button :disabled="status.running" @click="startTask(true)" style="margin-left:8px">
+          强制覆盖
+        </el-button>
+      </el-col>
+      <el-col :span="4">
+        <el-button type="danger" :disabled="!status.running" @click="stopTask">
+          停止
+        </el-button>
+      </el-col>
+      <el-col :span="12" style="text-align:right;color:#6b6580">
+        <span v-if="status.running" style="color:#d4a853">{{ status.status }}</span>
+        <span v-else>{{ status.status || '空闲' }}</span>
+      </el-col>
+    </el-row>
+  </div>
+
+  <div style="background:#111122;border:1px solid #252545;border-radius:8px;padding:20px;margin-bottom:20px">
+    <el-descriptions :column="2" border size="small"
+                     style="--el-descriptions-item-bordered-label-background:#171730;--el-descriptions-item-bordered-content-background:#111122">
+      <el-descriptions-item label="漫画总数">{{ status.totalComics || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="已处理漫画">{{ status.processedComics || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="章节总数">{{ status.totalChapters || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="已压缩章节">{{ status.processedChapters || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="跳过章节">{{ status.skippedChapters || 0 }}</el-descriptions-item>
+      <el-descriptions-item label="失败章节">{{ status.errorChapters || 0 }}</el-descriptions-item>
+    </el-descriptions>
+  </div>
+
+  <div style="background:#111122;border:1px solid #252545;border-radius:8px;padding:20px">
+    <h3 style="color:#e8e4dc;margin-bottom:12px">执行日志</h3>
+    <div ref="logBox" style="max-height:400px;overflow-y:auto;font-family:monospace;font-size:12px;line-height:1.8;color:#6b6580;background:#090912;padding:12px;border-radius:4px">
+      <div v-for="(line, i) in status.logs" :key="i">{{ line }}</div>
+      <div v-if="!status.logs || !status.logs.length" style="color:#3a3650">暂无日志</div>
+    </div>
+  </div>
+
+  <a href="/home" style="position:fixed;bottom:24px;right:24px;display:flex;align-items:center;gap:6px;padding:10px 18px;background:#171730;border:1px solid #252545;border-radius:10px;color:#6b6580;text-decoration:none;font-size:13px">← 首页</a>
+</div>
+
+<script src="/public/res/module/auth.js"></script>
+<script src="/public/res/lib/vue.global.prod.js"></script>
+<script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
+<script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
+<script>
+Vue.createApp({
+  data: function () {
+    return {
+      status: { running: false, status: '空闲', logs: [] },
+      timer: null
+    };
+  },
+  mounted: function () {
+    this.fetchStatus();
+    this.timer = setInterval(this.fetchStatus, 2000);
+  },
+  beforeUnmount: function () {
+    if (this.timer) clearInterval(this.timer);
+  },
+  methods: {
+    fetchStatus: function () {
+      var self = this;
+      axios.get('/tool/manga-zip/status').then(function (res) {
+        self.status = res.data;
+        self.$nextTick(function () {
+          var box = self.$refs.logBox;
+          if (box) box.scrollTop = box.scrollHeight;
+        });
+      });
+    },
+    startTask: function (overwrite) {
+      var self = this;
+      var msg = overwrite ? '确定要强制覆盖已有 zip 文件吗？' : '确定要开始压缩吗？';
+      ElementPlus.ElMessageBox.confirm(msg, '确认').then(function () {
+        axios.post('/tool/manga-zip/start', { overwrite: overwrite });
+      }).catch(function () {});
+    },
+    stopTask: function () {
+      axios.post('/tool/manga-zip/stop');
+    }
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+<style>
+  body { background: #090912; color: #e8e4dc; }
+  .el-descriptions { --el-text-color-primary: #e8e4dc; }
+</style>
+</body>
+</html>

@@ -22,7 +22,20 @@ var BlogAPI = (function () {
   /* ---------- 游戏 ---------- */
   function fetchGames() {
     return get('/games').then(function (data) {
-      return data || getMockGames();
+      if (!data || !data.length) return getMockGames();
+      return data.map(function (item) {
+        return {
+          id: item.id,
+          title: item.title || '（无标题）',
+          cover: item.images && item.images.length ? item.images[0] : '',
+          platforms: [],
+          rating: 0,
+          playtime: item.date_time || '',
+          description: item.content || '',
+          tags: [],
+          images: item.images || []
+        };
+      });
     });
   }
   function getMockGames() {
@@ -63,7 +76,24 @@ var BlogAPI = (function () {
   /* ---------- 摄影 ---------- */
   function fetchPhotos() {
     return get('/photos').then(function (data) {
-      return data || getMockPhotos();
+      if (!data) return getMockPhotos();
+      var featured = (data.featured || []).map(function (item) {
+        return {
+          id: item.id,
+          url: item.images && item.images.length ? item.images[0] : '',
+          title: item.title || '',
+          location: item.content || ''
+        };
+      });
+      var recent = (data.recent || []).map(function (item) {
+        return {
+          id: item.id,
+          url: item.images && item.images.length ? item.images[0] : '',
+          title: item.title || '',
+          location: item.content || ''
+        };
+      });
+      return { featured: featured.length ? featured : getMockPhotos().featured, recent: recent.length ? recent : getMockPhotos().recent };
     });
   }
   function getMockPhotos() {
@@ -87,7 +117,20 @@ var BlogAPI = (function () {
   /* ---------- 生活 ---------- */
   function fetchLife() {
     return get('/life').then(function (data) {
-      return data || getMockLife();
+      if (!data || !data.length) return getMockLife();
+      return data.map(function (item, idx) {
+        return {
+          id: item.id,
+          date: item.date_time || '',
+          title: item.title || '（无标题）',
+          category: '日常',
+          tagType: '',
+          color: '#c8956c',
+          content: item.content || '',
+          images: item.images || [],
+          important: false
+        };
+      });
     });
   }
   function getMockLife() {
@@ -131,7 +174,21 @@ var BlogAPI = (function () {
   /* ---------- 工作 ---------- */
   function fetchWork() {
     return get('/work').then(function (data) {
-      return data || getMockWork();
+      if (!data || !data.length) return getMockWork();
+      return data.map(function (item) {
+        return {
+          id: item.id,
+          name: item.title || '（无标题）',
+          status: '已完成',
+          statusType: 'success',
+          description: item.content || '',
+          progress: 100,
+          progressColor: '#6b9e8a',
+          techStack: [],
+          dateRange: item.date_time || '',
+          link: ''
+        };
+      });
     });
   }
   function getMockWork() {

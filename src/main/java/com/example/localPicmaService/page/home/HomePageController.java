@@ -7,11 +7,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 @RestController
 @RequestMapping("/home/api")
 public class HomePageController {
+
+    private static final SimpleDateFormat TIME_FMT = new SimpleDateFormat("HH:mm");
 
     @GetMapping("/games")
     public List<Map<String, Object>> getGames() throws Exception {
@@ -64,7 +67,8 @@ public class HomePageController {
             item.put("title", row.get("title"));
             item.put("content", row.get("content"));
             item.put("order_num", row.get("order_num"));
-            item.put("date_time", row.get("date_time"));
+            Object dt = row.get("date_time");
+            item.put("date_time", dt instanceof java.util.Date ? TIME_FMT.format((java.util.Date) dt) : dt);
             item.put("sort_order", row.get("sort_order"));
             item.put("create_date", row.get("create_date"));
 

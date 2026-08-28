@@ -79,14 +79,19 @@ public class HomeAdminController {
                         + "sort_order, create_date, update_date "
                         + "FROM home_content WHERE module_type = {?varchar|m?} ORDER BY sort_order, id",
                 Map.of("m", moduleType), 200);
-        // 解析 JSONB data（图片ID数组）
         if (rows != null) {
             for (Map<String, Object> row : rows) {
+                // 解析 JSONB data（图片ID数组）
                 Object data = row.get("data");
                 if (data != null) {
                     try {
                         row.put("data", JSONUtil.parseArray(data.toString()));
                     } catch (Exception ignored) {}
+                }
+                // 格式化 time 类型
+                Object dt = row.get("date_time");
+                if (dt instanceof java.util.Date) {
+                    row.put("date_time", new java.text.SimpleDateFormat("HH:mm").format((java.util.Date) dt));
                 }
             }
         }
@@ -129,9 +134,9 @@ public class HomeAdminController {
             vals.append(", {?int|orderNum?}");
             params.put("orderNum", orderNum);
         }
-        if (dateTime != null) {
+        if (dateTime != null && !dateTime.isEmpty()) {
             cols.append(", date_time");
-            vals.append(", {?varchar|dateTime?}");
+            vals.append(", {?time|dateTime?}");
             params.put("dateTime", dateTime);
         }
         if (images != null) {
@@ -173,8 +178,12 @@ public class HomeAdminController {
         params.put("p" + idx, orderNum != null ? orderNum : 0);
         idx++;
 
-        sets.add("date_time = {?varchar|p" + idx + "?}");
-        params.put("p" + idx, dateTime != null ? dateTime : "");
+        if (dateTime != null && !dateTime.isEmpty()) {
+            sets.add("date_time = {?time|p" + idx + "?}");
+            params.put("p" + idx, dateTime);
+        } else {
+            sets.add("date_time = NULL");
+        }
         idx++;
 
         if (images != null) {

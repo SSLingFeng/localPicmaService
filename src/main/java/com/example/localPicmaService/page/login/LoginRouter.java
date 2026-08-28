@@ -42,4 +42,14 @@ public class LoginRouter {
     public ResponseEntity<byte[]> homeAdmin() {
         return ResourceController.serveFile("static/module/home/admin.html");
     }
+
+    @GetMapping("/admin/manga")
+    public ResponseEntity<byte[]> adminManga() {
+        return ResourceController.serveFile("static/module/admin/manga/main.html");
+    }
+
+    @GetMapping("/tool/manga-zip")
+    public ResponseEntity<byte[]> mangaZip() {
+        return ResourceController.serveFile("static/module/tool/manga-zip.html");
+    }
 }

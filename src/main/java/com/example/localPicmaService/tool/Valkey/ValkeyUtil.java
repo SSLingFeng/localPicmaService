@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.Base64;
 
 /**
  * Valkey / Redis 键值工具类 —— 提供基础的键值存取与删除能力。
@@ -162,6 +163,36 @@ public class ValkeyUtil {
     }
 
     // ======================== 计数 ========================
+
+    /**
+     * 存储字节数据（Base64 编码后存入 String）
+     *
+     * @param key     键
+     * @param data    字节数组
+     * @param seconds 过期秒数
+     */
+    public void setBytesEx(String key, byte[] data, long seconds) {
+        String encoded = Base64.getEncoder().encodeToString(data);
+        set(key, encoded, seconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 读取字节数据（从 Base64 解码）
+     *
+     * @param key 键
+     * @return 字节数组，键不存在返回 null
+     */
+    public byte[] getBytes(String key) {
+        String encoded = get(key);
+        if (encoded == null) return null;
+        try {
+            return Base64.getDecoder().decode(encoded);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    // ======================== 计数 ========================（原计数方法）
 
     /**
      * 自增（键不存在时初始化为 0 再自增）

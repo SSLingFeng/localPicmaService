@@ -3,11 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>漫画管理</title>
+  <title>漫画管理 - 后台</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
   <link rel="stylesheet" href="/public/res/module/router/private/cartoon/style.css">
+  <style>
+    .deleted-card { opacity: .55; }
+    .deleted-card:hover { opacity: .85; }
+    .del-badge {
+      position: absolute; top: 8px; right: 8px; z-index: 3;
+      background: rgba(220,50,50,.85); color: #fff; font-size: 11px;
+      padding: 2px 8px; border-radius: 3px; font-weight: 600;
+    }
+    .del-reason {
+      font-size: 11px; color: #e74c3c; margin-top: 4px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .filter-bar {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; padding: 12px 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .filter-bar label { color: var(--text-muted); font-size: 13px; }
+  </style>
 </head>
 
 <body>
@@ -15,8 +35,12 @@
 
   <!-- 页头 -->
   <header class="page-header">
-    <h1 class="site-title"><i class="el-icon-notebook"></i> 漫画管理</h1>
-    <p class="site-subtitle">共收录 <strong>{{ total }}</strong> 部作品</p>
+    <h1 class="site-title"><i class="el-icon-notebook"></i> 漫画管理（后台）</h1>
+    <p class="site-subtitle">共 <strong>{{ total }}</strong> 部作品
+      <span v-if="filterDel===0" style="color:var(--accent-light)"> · 仅正常</span>
+      <span v-if="filterDel===1" style="color:#e74c3c"> · 仅已删除</span>
+      <span v-if="filterDel===null" style="color:var(--text-muted)"> · 全部</span>
+    </p>
   </header>
 
   <!-- 搜索栏 -->
@@ -50,11 +74,6 @@
           <el-option v-for="o in sortOptions" :key="o.value" :label="o.label" :value="o.value" />
         </el-select>
       </el-form-item>
-      <el-form-item label="偏好">
-        <el-select v-model="searchForm.prefFilter" placeholder="默认" clearable style="width:120px">
-          <el-option v-for="o in prefOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </el-form-item>
       <el-form-item>
         <el-button type="primary" icon="el-icon-search" @click="doSearch">搜索</el-button>
         <el-button icon="el-icon-refresh-left" @click="doReset">重置</el-button>
@@ -62,13 +81,24 @@
     </el-form>
   </section>
 
+  <!-- 过滤栏 -->
+  <section class="filter-bar" style="max-width:1100px;margin:16px auto 0;padding:0 24px">
+    <label>删除状态：</label>
+    <el-radio-group v-model="filterDel" size="small" @change="doSearch">
+      <el-radio-button :label="null">全部</el-radio-button>
+      <el-radio-button :label="0">正常</el-radio-button>
+      <el-radio-button :label="1">已删除</el-radio-button>
+    </el-radio-group>
+  </section>
+
   <!-- 漫画列表 -->
   <section class="comic-section" v-loading="loading" element-loading-text="加载中...">
     <transition-group name="card-anim" tag="div" class="comic-grid" v-if="comicList.length">
       <div v-for="(comic, idx) in comicList" :key="comic.id" class="comic-card"
-           :style="{ animationDelay: idx * 0.035 + 's' }" @click="openChapters(comic)">
+           :class="{ 'deleted-card': comic.del_flag }"
+           :style="{ animationDelay: idx * 0.035 + 's' }">
         <!-- 封面 -->
-        <div class="comic-cover">
+        <div class="comic-cover" @click="openChapters(comic)">
           <div class="cover-fallback">
             <i class="el-icon-picture-outline"></i>
             <span>{{ comic.title ? comic.title.charAt(0) : '?' }}</span>
@@ -79,7 +109,7 @@
             <span class="badge badge-type" :class="comic.type === '漫画' ? 'type-comic' : 'type-coser'">{{ comic.type }}</span>
             <span class="badge badge-pages"><i class="el-icon-document"></i> {{ comic.pages_count }}P</span>
           </div>
-          <div v-if="comic.favorited" style="position:absolute;bottom:8px;right:8px;z-index:2;font-size:18px;color:#e74c3c;text-shadow:0 1px 4px rgba(0,0,0,.6)">&#10084;</div>
+          <div v-if="comic.del_flag" class="del-badge">已删除</div>
         </div>
         <!-- 信息 -->
         <div class="comic-info">
@@ -95,6 +125,14 @@
           <div class="comic-cats" v-if="comic.categories && comic.categories.length">
             <el-tag v-for="cat in comic.categories.slice(0,3)" :key="'c-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
             <el-tag v-if="comic.categories.length > 3" size="small" effect="plain" type="info">+{{ comic.categories.length - 3 }}</el-tag>
+          </div>
+          <div v-if="comic.del_flag && comic.del_reason" class="del-reason">
+            <i class="el-icon-warning"></i> {{ comic.del_reason }}
+          </div>
+          <!-- 操作按钮 -->
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <el-button v-if="!comic.del_flag" size="small" type="danger" @click.stop="openDeleteDlg(comic)">删除</el-button>
+            <el-button v-if="comic.del_flag" size="small" type="success" @click.stop="doRestore(comic)">恢复</el-button>
           </div>
         </div>
       </div>
@@ -126,11 +164,8 @@
   </footer>
 
   <!-- 漫画详情 & 章节弹窗 -->
-  <el-dialog v-model="chapterDlg" :fullscreen="isMobile" :width="isMobile ? '100%' : '720px'" :top="isMobile ? '0' : '6vh'" custom-class="comic-detail-dlg" :show-close="false">
-    <!-- 左上角关闭按钮 -->
-    <button class="detail-close-btn" @click="chapterDlg = false">&times;</button>
+  <el-dialog v-model="chapterDlg" width="700px" top="4vh" custom-class="comic-detail-dlg">
     <div v-if="chapterComic" class="comic-detail">
-      <!-- 头部：封面 + 基本信息 -->
       <div class="detail-header">
         <div class="detail-cover">
           <img v-if="getCoverUrl(chapterComic)" :src="getCoverUrl(chapterComic)" :alt="chapterComic.title" />
@@ -154,25 +189,8 @@
             <span class="detail-label">类别</span>
             <el-tag v-for="cat in chapterComic.categories" :key="'dc-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
           </div>
-          <!-- 描述 -->
-          <div class="detail-desc" v-if="chapterComic.description">
-            <span class="detail-label">简介</span>
-            <p class="detail-desc-text">{{ chapterComic.description }}</p>
-          </div>
-          <!-- 收藏 / 厌恶按钮 -->
-          <div style="display:flex;gap:10px;margin-top:8px">
-            <el-button :type="chapterComic.favorited ? 'danger' : 'default'" size="small"
-                       @click="toggleFavorite(chapterComic)">
-              {{ chapterComic.favorited ? '&#10084; 已收藏' : '&#9825; 收藏' }}
-            </el-button>
-            <el-button :type="chapterComic.disliked ? 'warning' : 'default'" size="small"
-                       @click="toggleDislike(chapterComic)">
-              {{ chapterComic.disliked ? '&#128078; 已厌恶' : '&#128078; 厌恶' }}
-            </el-button>
-          </div>
         </div>
       </div>
-      <!-- 章节选择 -->
       <el-divider></el-divider>
       <h4 style="margin-bottom:10px;color:var(--text-muted)">选择章节</h4>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -184,6 +202,23 @@
         </el-button>
       </div>
     </div>
+  </el-dialog>
+
+  <!-- 删除确认弹窗 -->
+  <el-dialog title="删除漫画" v-model="deleteDlg" width="450px" top="30vh">
+    <div v-if="deleteTarget" style="margin-bottom:12px">
+      <p>确定要删除 <strong>{{ deleteTarget.title }}</strong> 吗？</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:4px">此操作将标记为已删除，可随时恢复。</p>
+    </div>
+    <el-form label-width="80px" size="small">
+      <el-form-item label="删除理由">
+        <el-input type="textarea" v-model="deleteReason" :rows="3" placeholder="输入删除理由（可选）" maxlength="200" show-word-limit />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="deleteDlg = false">取消</el-button>
+      <el-button type="danger" :loading="deleteLoading" @click="doDelete">确认删除</el-button>
+    </template>
   </el-dialog>
 
   <!-- 图片查看器 -->
@@ -210,8 +245,7 @@
   </transition>
 
   <!-- 返回按钮 -->
-  <a href="/home" class="back-fab">← 首页</a>
-
+  <a href="/home" class="back-fab">&larr; 首页</a>
 </div>
 
 <script src="/public/res/module/auth.js"></script>
@@ -219,7 +253,7 @@
 <script src="/public/res/lib/vue.global.prod.js"></script>
 <script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
 <script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
-<script src="/public/res/module/router/private/cartoon/app.js"></script>
+<script src="/public/res/module/admin/manga/app.js"></script>
 <script>LoginModal.init();</script>
 </body>
 </html>

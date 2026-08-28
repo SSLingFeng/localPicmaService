@@ -163,6 +163,41 @@ src/main/resources/
 
 ## 数据库表
 
+### 建表规范
+
+所有新建表必须包含以下系统内建字段：
+
+```sql
+CREATE TABLE public.{table_name}
+(
+    id           varchar(40)       not null    primary key,
+    ver          integer default 0 not null,
+    create_date  timestamp,
+    update_date  timestamp,
+    creator_id   varchar(40),
+    creator_name varchar(50),
+    updator_id   varchar(40),
+    updator_name varchar(50),
+    del_flag     integer default 0,
+    -- 业务字段 ...
+);
+
+COMMENT ON TABLE  public.{table_name}                   IS '表说明';
+COMMENT ON COLUMN public.{table_name}.id                IS '系统内建字段，主键';
+COMMENT ON COLUMN public.{table_name}.ver               IS '系统内建字段，版本号';
+COMMENT ON COLUMN public.{table_name}.create_date       IS '系统内建字段，创建时间';
+COMMENT ON COLUMN public.{table_name}.update_date       IS '系统内建字段，最近更新时间';
+COMMENT ON COLUMN public.{table_name}.creator_id        IS '系统内建字段，创建账号id';
+COMMENT ON COLUMN public.{table_name}.creator_name      IS '系统内建字段，创建账号名称';
+COMMENT ON COLUMN public.{table_name}.updator_id        IS '系统内建字段，最近更新账号id';
+COMMENT ON COLUMN public.{table_name}.updator_name      IS '系统内建字段，最近更新账号名称';
+COMMENT ON COLUMN public.{table_name}.del_flag          IS '系统内建字段，删除标记，0未删除，1删除；默认0';
+
+ALTER TABLE public.{table_name} OWNER TO czw;
+```
+
+### 表清单
+
 | 表名 | 用途 |
 |------|------|
 | `web_user` | 用户表 |
@@ -171,6 +206,7 @@ src/main/resources/
 | `sys_menu` | 菜单/页面表（支持树形结构） |
 | `sys_role_menu` | 角色-菜单关联 |
 | `manga_source` | 漫画/资源数据 |
+| `manga_user_preference` | 漫画用户偏好（收藏/厌恶），关联 `web_user.id` + `manga_source.id` |
 | `squad` | 战队表 |
 | `squad_member` | 战队成员表 |
 | `home_content` | 首页内容（JSONB data 字段） |

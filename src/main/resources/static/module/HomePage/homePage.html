@@ -114,20 +114,23 @@
                                 </el-row>
                             </template>
 
-                            <template>
+                            <template #default>
                                 <el-row :gutter="16">
                                     <el-col :xs="24" :sm="12" :md="8"
                                             v-for="game in games" :key="game.id">
                                         <el-card shadow="hover" :body-style="{ padding: '0' }"
                                                  class="game-card anim-fade-in-up">
                                             <div class="game-cover">
-                                                <el-image :src="game.cover" fit="cover" lazy>
+                                                <el-image v-if="game.cover" :src="game.cover" fit="cover" lazy>
                                                     <template #error><div class="img-slot"><i
                                                             class="el-icon-picture-outline"></i></div></template>
                                                     <template #placeholder><div class="img-slot"><i
                                                             class="el-icon-loading"></i></div></template>
                                                 </el-image>
-                                                <div class="game-platform-badge">
+                                                <div v-else class="img-slot" style="height:180px">
+                                                    <i class="el-icon-picture-outline" style="font-size:40px"></i>
+                                                </div>
+                                                <div class="game-platform-badge" v-if="game.platforms && game.platforms.length">
                                                     <el-tag v-for="p in game.platforms" :key="p"
                                                             size="small" effect="dark" type="warning">{{ p }}
                                                     </el-tag>
@@ -135,15 +138,15 @@
                                             </div>
                                             <div class="game-info">
                                                 <h3 class="game-title">{{ game.title }}</h3>
-                                                <div class="game-meta">
-                                                    <el-rate v-model="game.rating" disabled
+                                                <div class="game-meta" v-if="game.rating || game.playtime">
+                                                    <el-rate v-if="game.rating" v-model="game.rating" disabled
                                                              :colors="['#c8956c','#c8956c','#c8956c']"
                                                              :max="5" :allow-half="true"></el-rate>
-                                                    <span class="game-time"><i
+                                                    <span class="game-time" v-if="game.playtime"><i
                                                             class="el-icon-time"></i> {{ game.playtime }}</span>
                                                 </div>
                                                 <p class="game-desc">{{ game.description }}</p>
-                                                <div class="game-tags">
+                                                <div class="game-tags" v-if="game.tags && game.tags.length">
                                                     <el-tag v-for="t in game.tags" :key="t"
                                                             size="small" type="info" effect="plain">{{ t }}
                                                     </el-tag>
@@ -153,8 +156,7 @@
                                     </el-col>
                                 </el-row>
                                 <el-empty v-if="!loading.gaming && games.length===0"
-                                          description="暂无游戏记录"
-                                          image="https://element.eleme.cn/2.0/static/empty.6ea12a5.png">
+                                          description="暂无游戏记录">
                                 </el-empty>
                             </template>
                         </el-skeleton>

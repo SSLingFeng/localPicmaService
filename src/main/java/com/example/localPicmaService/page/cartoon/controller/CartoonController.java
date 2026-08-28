@@ -3,14 +3,21 @@ package com.example.localPicmaService.page.cartoon.controller;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.example.localPicmaService.config.SystemConfig;
 import com.example.localPicmaService.tool.SQLTool.SqlUtil;
 import com.example.localPicmaService.tool.Valkey.ValkeyUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 @RestController
 @RequestMapping("/page/cartoon/api")
@@ -27,6 +34,70 @@ public class CartoonController {
             "coser", "coser"
     );
 
+    /** 带过期时间戳的图片缓存值 */
+    private static class CacheEntry {
+        final byte[] data;
+        final long expireAt; // System.currentTimeMillis() + ttl
+        CacheEntry(byte[] data, long expireAt) {
+            this.data = data;
+            this.expireAt = expireAt;
+        }
+    }
+
+    /** 章节图片缓存：支持 per-entry 动态 TTL */
+    private static final Cache<String, CacheEntry> IMAGE_CACHE = Caffeine.newBuilder()
+            .maximumSize(4000)
+            .expireAfter(new com.github.benmanes.caffeine.cache.Expiry<String, CacheEntry>() {
+                @Override
+                public long expireAfterCreate(String key, CacheEntry entry, long currentTime) {
+                    long ttlNanos = (entry.expireAt - System.currentTimeMillis()) * 1_000_000;
+                    return Math.max(ttlNanos, 1);
+                }
+                @Override
+                public long expireAfterUpdate(String key, CacheEntry entry, long currentTime, long currentDuration) {
+                    return currentDuration;
+                }
+                @Override
+                public long expireAfterRead(String key, CacheEntry entry, long currentTime, long currentDuration) {
+                    return currentDuration;
+                }
+            })
+            .build();
+
+    /** 根据章节特征计算缓存过期时间（秒） */
+    private long calcTtlSeconds(int imageCount, long zipSizeBytes) {
+        if (imageCount > 600 || zipSizeBytes > 600L * 1024 * 1024) {
+            return 15 * 60;  // 15 分钟
+        }
+        if (imageCount > 300 || zipSizeBytes > 300L * 1024 * 1024) {
+            return 30 * 60;  // 30 分钟
+        }
+        return 60 * 60;      // 默认 1 小时
+    }
+
+    // ======================== 获取当前用户 ========================
+
+    private String getCurrentUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+            return auth.getName();
+        }
+        return null;
+    }
+
+    /** 根据用户名查询 web_user.id，未找到返回 null */
+    private String getCurrentUserId() {
+        String username = getCurrentUsername();
+        if (username == null) return null;
+        try {
+            Map<String, Object> row = SqlUtil.row(
+                    "SELECT id FROM web_user WHERE user_name = {?varchar|u?}", Map.of("u", username));
+            return row != null ? row.get("id").toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     // ======================== 漫画列表 ========================
 
     @PostMapping("/list")
@@ -42,37 +113,65 @@ public class CartoonController {
                 params.getJSONArray("searchCategories").toList(String.class) : List.of() : List.of();
         String sortField = params != null ? params.getStr("sortField", "") : "";
         String sortOrder = params != null ? params.getStr("sortOrder", "desc") : "desc";
+        String prefFilter = params != null ? params.getStr("prefFilter", "") : "";
+
+        String currentUser = getCurrentUserId();
 
         List<String> conditions = new ArrayList<>();
         Map<String, Object> queryParams = new LinkedHashMap<>();
         int paramIdx = 0;
 
-        conditions.add("del_flag = 0");
+        conditions.add("ms.del_flag = 0");
+
+        // 收藏/厌恶过滤
+        if ("favorite".equals(prefFilter)) {
+            if (currentUser != null) {
+                conditions.add("EXISTS (SELECT 1 FROM manga_user_preference p "
+                        + "WHERE p.manga_id = ms.id AND p.user_id = {?varchar|pfu?} AND p.pref_type = 1 AND p.del_flag = 0)");
+                queryParams.put("pfu", currentUser);
+            } else {
+                return Map.of("items", List.of(), "total", 0);
+            }
+        } else if ("dislike".equals(prefFilter)) {
+            if (currentUser != null) {
+                conditions.add("EXISTS (SELECT 1 FROM manga_user_preference p "
+                        + "WHERE p.manga_id = ms.id AND p.user_id = {?varchar|pdu?} AND p.pref_type = -1 AND p.del_flag = 0)");
+                queryParams.put("pdu", currentUser);
+            } else {
+                return Map.of("items", List.of(), "total", 0);
+            }
+        } else {
+            if (currentUser != null) {
+                conditions.add("NOT EXISTS (SELECT 1 FROM manga_user_preference p "
+                        + "WHERE p.manga_id = ms.id AND p.user_id = {?varchar|pdu?} AND p.pref_type = -1 AND p.del_flag = 0)");
+                queryParams.put("pdu", currentUser);
+            }
+        }
 
         if (searchTitle != null && !searchTitle.isBlank()) {
-            conditions.add("title ILIKE {?varchar|p" + paramIdx + "?}");
+            conditions.add("ms.title ILIKE {?varchar|p" + paramIdx + "?}");
             queryParams.put("p" + paramIdx, "%" + searchTitle + "%");
             paramIdx++;
         }
         if (searchType != null && !searchType.isBlank()) {
-            conditions.add("type = {?varchar|p" + paramIdx + "?}");
+            conditions.add("ms.type = {?varchar|p" + paramIdx + "?}");
             queryParams.put("p" + paramIdx, searchType);
             paramIdx++;
         }
         for (String tag : searchTags) {
-            conditions.add("tags::jsonb @> {?varchar|p" + paramIdx + "?}::jsonb");
+            conditions.add("ms.tags::jsonb @> {?varchar|p" + paramIdx + "?}::jsonb");
             queryParams.put("p" + paramIdx, "[\"" + tag + "\"]");
             paramIdx++;
         }
         for (String cat : searchCats) {
-            conditions.add("categories::jsonb @> {?varchar|p" + paramIdx + "?}::jsonb");
+            conditions.add("ms.categories::jsonb @> {?varchar|p" + paramIdx + "?}::jsonb");
             queryParams.put("p" + paramIdx, "[\"" + cat + "\"]");
             paramIdx++;
         }
 
         String where = String.join(" AND ", conditions);
 
-        String countSql = "SELECT COUNT(*) AS cnt FROM manga_source WHERE " + where;
+        String countSql = "SELECT COUNT(*) AS cnt FROM manga_source ms WHERE " + where;
         Map<String, Object> countRow = SqlUtil.row(countSql, queryParams);
         long total = 0;
         if (countRow != null) {
@@ -80,12 +179,18 @@ public class CartoonController {
             if (cnt instanceof Number) total = ((Number) cnt).longValue();
         }
 
-        // 构建排序子句：白名单校验防注入
         String orderBy = buildOrderBy(sortField, sortOrder);
 
-        String dataSql = "SELECT id, type, title, author, chinese_team, description, "
-                + "tags, categories, pages_count, chapters, likes, comments, time, path, directory "
-                + "FROM manga_source WHERE " + where + " " + orderBy + " LIMIT " + size + " OFFSET " + from;
+        // 查询数据，附带当前用户的收藏状态
+        String favSelect = currentUser != null
+                ? ", (SELECT p.pref_type FROM manga_user_preference p WHERE p.manga_id = ms.id AND p.user_id = {?varchar|favu?} AND p.del_flag = 0) AS my_pref"
+                : ", NULL AS my_pref";
+        if (currentUser != null) queryParams.put("favu", currentUser);
+
+        String dataSql = "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, ms.description, "
+                + "ms.tags, ms.categories, ms.pages_count, ms.chapters, ms.likes, ms.comments, ms.time, ms.path, ms.directory"
+                + favSelect
+                + " FROM manga_source ms WHERE " + where + " " + orderBy + " LIMIT " + size + " OFFSET " + from;
         List<Map<String, Object>> rows = SqlUtil.query(dataSql, queryParams);
 
         List<Map<String, Object>> items = new ArrayList<>();
@@ -94,6 +199,12 @@ public class CartoonController {
             item.put("tags", parseJsonArray(row.get("tags")));
             item.put("categories", parseJsonArray(row.get("categories")));
             item.put("chapters", parseJsonArray(row.get("chapters")));
+
+            // 收藏状态
+            Object myPref = row.get("my_pref");
+            item.put("favorited", myPref instanceof Number && ((Number) myPref).intValue() == 1);
+            item.put("disliked", myPref instanceof Number && ((Number) myPref).intValue() == -1);
+            item.remove("my_pref");
 
             // 封面路径存入 Valkey，返回 cover_key
             String coverValkeyKey = row.get("id") + "cover";
@@ -112,6 +223,70 @@ public class CartoonController {
         return result;
     }
 
+    // ======================== 收藏/厌恶 切换 ========================
+
+    @PostMapping("/toggleFavorite")
+    public Map<String, Object> toggleFavorite(@RequestBody JSONObject body) throws Exception {
+        String userId = getCurrentUserId();
+        if (userId == null) return Map.of("success", false, "error", "未登录");
+
+        String mangaId = body.getStr("mangaId");
+        if (mangaId == null) return Map.of("success", false, "error", "缺少 mangaId");
+
+        Map<String, Object> existing = SqlUtil.row(
+                "SELECT id, pref_type FROM manga_user_preference WHERE user_id = {?varchar|u?} AND manga_id = {?varchar|m?} AND del_flag = 0",
+                Map.of("u", userId, "m", mangaId));
+
+        if (existing != null) {
+            int type = ((Number) existing.get("pref_type")).intValue();
+            if (type == 1) {
+                SqlUtil.exec("UPDATE manga_user_preference SET del_flag = 1, update_date = NOW() WHERE id = {?varchar|id?}", Map.of("id", existing.get("id")));
+                return Map.of("success", true, "action", "unfavorite");
+            } else {
+                SqlUtil.exec("UPDATE manga_user_preference SET pref_type = 1, del_flag = 0, update_date = NOW() WHERE id = {?varchar|id?}",
+                        Map.of("id", existing.get("id")));
+                return Map.of("success", true, "action", "favorite");
+            }
+        } else {
+            String id = UUID.randomUUID().toString().replace("-", "").substring(0, 32);
+            SqlUtil.exec("INSERT INTO manga_user_preference (id, user_id, manga_id, pref_type, create_date) "
+                            + "VALUES ({?varchar|id?}, {?varchar|u?}, {?varchar|m?}, 1, NOW())",
+                    Map.of("id", id, "u", userId, "m", mangaId));
+            return Map.of("success", true, "action", "favorite");
+        }
+    }
+
+    @PostMapping("/toggleDislike")
+    public Map<String, Object> toggleDislike(@RequestBody JSONObject body) throws Exception {
+        String userId = getCurrentUserId();
+        if (userId == null) return Map.of("success", false, "error", "未登录");
+
+        String mangaId = body.getStr("mangaId");
+        if (mangaId == null) return Map.of("success", false, "error", "缺少 mangaId");
+
+        Map<String, Object> existing = SqlUtil.row(
+                "SELECT id, pref_type FROM manga_user_preference WHERE user_id = {?varchar|u?} AND manga_id = {?varchar|m?} AND del_flag = 0",
+                Map.of("u", userId, "m", mangaId));
+
+        if (existing != null) {
+            int type = ((Number) existing.get("pref_type")).intValue();
+            if (type == -1) {
+                SqlUtil.exec("UPDATE manga_user_preference SET del_flag = 1, update_date = NOW() WHERE id = {?varchar|id?}", Map.of("id", existing.get("id")));
+                return Map.of("success", true, "action", "undislike");
+            } else {
+                SqlUtil.exec("UPDATE manga_user_preference SET pref_type = -1, del_flag = 0, update_date = NOW() WHERE id = {?varchar|id?}",
+                        Map.of("id", existing.get("id")));
+                return Map.of("success", true, "action", "dislike");
+            }
+        } else {
+            String id = UUID.randomUUID().toString().replace("-", "").substring(0, 32);
+            SqlUtil.exec("INSERT INTO manga_user_preference (id, user_id, manga_id, pref_type, create_date) "
+                            + "VALUES ({?varchar|id?}, {?varchar|u?}, {?varchar|m?}, -1, NOW())",
+                    Map.of("id", id, "u", userId, "m", mangaId));
+            return Map.of("success", true, "action", "dislike");
+        }
+    }
+
     // ======================== 封面图片（Valkey key 查询） ========================
 
     @GetMapping("/cover")
@@ -122,17 +297,63 @@ public class CartoonController {
         serveFile(filePath, response);
     }
 
-    // ======================== 章节图片（Valkey key 查询） ========================
+    // ======================== 章节图片（Valkey 缓存 + zip 读取） ========================
 
     @GetMapping("/pageImage")
     public void pageImage(@RequestParam String key,
                           jakarta.servlet.http.HttpServletResponse response) throws Exception {
-        String filePath = valkeyUtil.get(key);
-        if (filePath == null || filePath.isBlank()) { response.setStatus(404); return; }
-        serveFile(filePath, response);
+        // 1. 尝试从 Caffeine 缓存获取图片字节
+        CacheEntry cached = IMAGE_CACHE.getIfPresent(key);
+        if (cached != null) {
+            String contentType = detectContentType(key);
+            response.setContentType(contentType);
+            response.setContentLength(cached.data.length);
+            response.getOutputStream().write(cached.data);
+            return;
+        }
+
+        // 2. 缓存未命中，从 Valkey 元数据获取来源
+        String meta = valkeyUtil.get(key + ":meta");
+        if (meta == null || meta.isBlank()) { response.setStatus(404); return; }
+
+        byte[] imageData;
+        String contentType;
+        long ttlSeconds = 3600; // 默认 1 小时
+
+        if (meta.startsWith("file:")) {
+            // 文件路径模式（未压缩的章节）
+            String filePath = meta.substring(5);
+            java.io.File file = new java.io.File(filePath);
+            if (!file.exists()) { response.setStatus(404); return; }
+            imageData = java.nio.file.Files.readAllBytes(file.toPath());
+            contentType = detectContentType(filePath);
+        } else {
+            // zip 模式：zipPath|entryName|imageCount|zipSizeBytes
+            String[] parts = meta.split("\\|", 4);
+            if (parts.length < 2) { response.setStatus(404); return; }
+            String zipPath = parts[0];
+            String entryName = parts[1];
+            if (parts.length >= 4) {
+                int imgCount = Integer.parseInt(parts[2]);
+                long zipSize = Long.parseLong(parts[3]);
+                ttlSeconds = calcTtlSeconds(imgCount, zipSize);
+            }
+            imageData = readZipEntry(zipPath, entryName);
+            if (imageData == null) { response.setStatus(404); return; }
+            contentType = detectContentType(entryName);
+        }
+
+        // 3. 缓存到 Caffeine（动态 TTL）
+        long expireAt = System.currentTimeMillis() + ttlSeconds * 1000;
+        IMAGE_CACHE.put(key, new CacheEntry(imageData, expireAt));
+
+        // 4. 返回
+        response.setContentType(contentType);
+        response.setContentLength(imageData.length);
+        response.getOutputStream().write(imageData);
     }
 
-    // ======================== 章节图片列表（返回 Valkey key 数组） ========================
+    // ======================== 章节图片列表（从 zip 扫描，返回 Valkey key 数组） ========================
 
     @PostMapping("/chapterImages")
     public Map<String, Object> chapterImages(@RequestBody JSONObject body) throws Exception {
@@ -144,7 +365,6 @@ public class CartoonController {
                 Map.of("id", comicId));
         if (comic == null) return Map.of("error", "漫画不存在");
 
-        // 章节名称
         String chapterName = String.valueOf(chapterIndex);
         List<Object> chapters = parseJsonArray(comic.get("chapters"));
         for (Object ch : chapters) {
@@ -158,24 +378,42 @@ public class CartoonController {
             }
         }
 
-        // 扫描章节目录，生成 Valkey key 数组
-        String dirPath = resolveFilePath(comic, String.valueOf(chapterIndex));
-        java.io.File dir = new java.io.File(dirPath);
+        String chapterDir = resolveFilePath(comic, String.valueOf(chapterIndex));
+        String zipPath = chapterDir + ".zip";
         List<String> imageKeys = new ArrayList<>();
 
-        if (dir.isDirectory()) {
-            java.io.File[] files = dir.listFiles((d, n) -> n.matches("\\d+\\.(jpg|jpeg|png|webp)"));
-            if (files != null && files.length > 0) {
-                Arrays.sort(files, Comparator.comparingInt(f -> {
-                    String name = f.getName().replaceAll("[^0-9]", "");
-                    return name.isEmpty() ? 0 : Integer.parseInt(name);
-                }));
-                for (java.io.File f : files) {
-                    // key = comicId + "img" + 文件名去掉后缀
-                    String nameNoExt = f.getName().replaceFirst("\\.[^.]+$", "");
-                    String valkeyKey = comicId + "img" + nameNoExt;
-                    valkeyUtil.setEx(valkeyKey, f.getAbsolutePath(), 3600);
-                    imageKeys.add(valkeyKey);
+        java.io.File zipFile = new java.io.File(zipPath);
+        if (zipFile.exists()) {
+            // 从 zip 扫描图片条目
+            List<String> entries = listZipImageEntries(zipPath);
+            long zipSize = zipFile.length();
+            int imgCount = entries.size();
+            for (int i = 0; i < entries.size(); i++) {
+                String entryName = entries.get(i);
+                String nameNoExt = entryName.replaceFirst("\\.[^.]+$", "");
+                String valkeyKey = comicId + "img" + nameNoExt;
+                // 元数据：zip路径|entry名称|图片数|zip字节大小
+                valkeyUtil.setEx(valkeyKey + ":meta",
+                        zipPath + "|" + entryName + "|" + imgCount + "|" + zipSize, 3600);
+                imageKeys.add(valkeyKey);
+            }
+        } else {
+            // zip 不存在，尝试从目录读取（兼容未压缩的情况）
+            java.io.File dir = new java.io.File(chapterDir);
+            if (dir.isDirectory()) {
+                java.io.File[] files = dir.listFiles((d, n) -> n.matches("\\d+\\.(jpg|jpeg|png|webp)"));
+                if (files != null && files.length > 0) {
+                    Arrays.sort(files, Comparator.comparingInt(f -> {
+                        String name = f.getName().replaceAll("[^0-9]", "");
+                        return name.isEmpty() ? 0 : Integer.parseInt(name);
+                    }));
+                    for (java.io.File f : files) {
+                        String nameNoExt = f.getName().replaceFirst("\\.[^.]+$", "");
+                        String valkeyKey = comicId + "img" + nameNoExt;
+                        // 直接读文件，标记为文件路径
+                        valkeyUtil.setEx(valkeyKey + ":meta", "file:" + f.getAbsolutePath(), 3600);
+                        imageKeys.add(valkeyKey);
+                    }
                 }
             }
         }
@@ -236,22 +474,14 @@ public class CartoonController {
 
     // ======================== 内部工具 ========================
 
-    /** 排序字段白名单 */
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
             "time", "title", "subtitle", "create_date", "pages_count", "likes"
     );
 
-    /**
-     * 构建 ORDER BY 子句
-     * sortField 为空或不在白名单内时，默认 time DESC
-     * 若 sortField 有效，则 sortField 排在前面，time DESC 作为次要排序
-     * 文本字段默认 ASC，数值/时间字段默认 DESC
-     */
     private String buildOrderBy(String sortField, String sortOrder) {
         if (sortField == null || !ALLOWED_SORT_FIELDS.contains(sortField)) {
-            return "ORDER BY time DESC";
+            return "ORDER BY ms.time DESC";
         }
-        // 文本字段默认升序，其余降序
         boolean isText = "title".equals(sortField) || "subtitle".equals(sortField);
         String dir;
         if (sortOrder != null && !sortOrder.isBlank()) {
@@ -259,25 +489,15 @@ public class CartoonController {
         } else {
             dir = isText ? "ASC" : "DESC";
         }
-        return "ORDER BY " + sortField + " " + dir + ", time DESC";
+        return "ORDER BY ms." + sortField + " " + dir + ", ms.time DESC";
     }
 
-    /**
-     * 根据数据库记录拼接文件路径
-     * 格式: {mediaRootPath}/{typeDir}/{path}/{directory}/{suffix}
-     *
-     * 适配历史遗留: Windows 目录名末尾的 "." 会被强制替换为 "_",
-     * 需要根据 path 日期判断修正方式:
-     *   path >= "20251010" → 去掉末尾点号
-     *   path <  "20251010" → 末尾点号替换为下划线
-     */
     private String resolveFilePath(Map<String, Object> row, String suffix) {
         String type = (String) row.get("type");
         String path = (String) row.get("path");
         String directory = (String) row.get("directory");
         String typeDir = TYPE_DIR.getOrDefault(type, type);
 
-        // 先修正 directory 末尾的点号（Windows 目录名末尾 "." 会被强制替换为 "_"）
         if (directory != null && directory.endsWith(".")) {
             if (path != null && path.compareTo("20251010") >= 0) {
                 directory = directory.replaceAll("\\.+$", "");
@@ -292,7 +512,6 @@ public class CartoonController {
         return systemConfig.getMediaRootPath() + "/" + typeDir + "/" + path + "/" + directory + "/" + suffix;
     }
 
-    /** 读取本地文件并写入响应 */
     private void serveFile(String filePath, jakarta.servlet.http.HttpServletResponse response) throws Exception {
         java.io.File file = new java.io.File(filePath);
         if (!file.exists() || !file.isFile()) {
@@ -329,5 +548,63 @@ public class CartoonController {
         } catch (Exception e) {
             return List.of();
         }
+    }
+
+    // ======================== Zip 工具方法 ========================
+
+    /** 扫描 zip 中的图片条目，按文件名数字排序 */
+    private List<String> listZipImageEntries(String zipPath) {
+        List<String> entries = new ArrayList<>();
+        try (ZipFile zip = new ZipFile(zipPath)) {
+            Enumeration<? extends ZipEntry> en = zip.entries();
+            while (en.hasMoreElements()) {
+                ZipEntry entry = en.nextElement();
+                if (entry.isDirectory()) continue;
+                String name = entry.getName();
+                // 只取文件名部分（忽略子目录）
+                int lastSlash = name.lastIndexOf('/');
+                if (lastSlash >= 0) name = name.substring(lastSlash + 1);
+                if (name.matches("\\d+\\.(jpg|jpeg|png|webp)")) {
+                    entries.add(name);
+                }
+            }
+        } catch (Exception ignored) {}
+        // 按文件名数字排序
+        entries.sort(Comparator.comparingInt(n -> {
+            String num = n.replaceAll("[^0-9]", "");
+            return num.isEmpty() ? 0 : Integer.parseInt(num);
+        }));
+        return entries;
+    }
+
+    /** 从 zip 中读取指定条目的字节数据 */
+    private byte[] readZipEntry(String zipPath, String entryName) {
+        try (ZipFile zip = new ZipFile(zipPath)) {
+            ZipEntry entry = zip.getEntry(entryName);
+            if (entry == null) {
+                // 尝试不带路径前缀的匹配
+                Enumeration<? extends ZipEntry> en = zip.entries();
+                while (en.hasMoreElements()) {
+                    ZipEntry e = en.nextElement();
+                    if (e.getName().endsWith(entryName)) { entry = e; break; }
+                }
+            }
+            if (entry == null) return null;
+            try (InputStream is = zip.getInputStream(entry)) {
+                return is.readAllBytes();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** 根据文件名检测 Content-Type */
+    private String detectContentType(String name) {
+        if (name == null) return "image/jpeg";
+        String lower = name.toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".gif")) return "image/gif";
+        return "image/jpeg";
     }
 }
