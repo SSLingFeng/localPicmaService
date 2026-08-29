@@ -52,4 +52,9 @@ public class LoginRouter {
     public ResponseEntity<byte[]> mangaZip() {
         return ResourceController.serveFile("static/module/tool/manga-zip.html");
     }
+
+    @GetMapping("/tool/sqlite-import")
+    public ResponseEntity<byte[]> sqliteImport() {
+        return ResourceController.serveFile("static/module/tool/sqlite-import.html");
+    }
 }

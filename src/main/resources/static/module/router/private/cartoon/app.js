@@ -1,5 +1,5 @@
 /* =================================================================
-   漫画管理 — 前端逻辑（接入本地 API）
+   漫画模块 — 推荐 / 搜索 / 我的
    ================================================================= */
 
 ;(function (Vue, axios, ElementPlus) {
@@ -23,9 +23,23 @@
     }
 
     /* =============================================================
-       API 封装
+       API
        ============================================================= */
     var BASE = '/page/cartoon/api';
+
+    function apiRecommend() {
+        return axios.get(BASE + '/recommend').then(function (res) {
+            var d = res.data || {};
+            return d.items || [];
+        });
+    }
+
+    function apiFavorites() {
+        return axios.get(BASE + '/favorites').then(function (res) {
+            var d = res.data || {};
+            return d.items || [];
+        });
+    }
 
     function apiSearchTags(name) {
         return axios.post(BASE + '/searchTags', { name: name })
@@ -53,19 +67,28 @@
             });
     }
 
-    function apiToggleFavorite(mangaId) {
-        return axios.post(BASE + '/toggleFavorite', { mangaId: mangaId })
+    function apiToggleFavorite(picgId) {
+        return axios.post(BASE + '/toggleFavorite', { picgId: picgId })
             .then(function (res) { return res.data || {}; });
     }
 
-    function apiToggleDislike(mangaId) {
-        return axios.post(BASE + '/toggleDislike', { mangaId: mangaId })
+    function apiToggleDislike(picgId) {
+        return axios.post(BASE + '/toggleDislike', { picgId: picgId })
             .then(function (res) { return res.data || {}; });
     }
 
     function apiChapterImages(comicId, chapterIndex) {
         return axios.post(BASE + '/chapterImages', { comicId: comicId, chapterIndex: chapterIndex })
             .then(function (res) { return res.data || {}; });
+    }
+
+    function apiDetail(id) {
+        return axios.get(BASE + '/detail', { params: { id: id } })
+            .then(function (res) {
+                var d = res.data || {};
+                if (d.success === false) throw new Error(d.error || '获取详情失败');
+                return d.data;
+            });
     }
 
     /* =============================================================
@@ -77,6 +100,13 @@
         data: function () {
             return {
                 isMobile: window.innerWidth <= 700,
+                activeTab: 'recommend',
+
+                /* 推荐 */
+                recommendList: [],
+                recommendLoading: false,
+
+                /* 搜索 */
                 searchForm: { title: '', type: '', tags: [], categories: [], sortField: '', sortOrder: 'desc', prefFilter: '' },
                 sortOptions: [
                     { label: '默认（时间）', value: '' },
@@ -92,19 +122,14 @@
                     { label: '漫画', value: '漫画' },
                     { label: 'Coser', value: 'coser' }
                 ],
+                tagLoading: false, tagOptions: [],
+                catLoading: false, catOptions: [],
+                comicList: [], total: 0, loading: false,
+                currentPage: 1, pageInput: 1, pageSize: 12,
 
-                tagLoading: false,
-                tagOptions: [],
-                catLoading: false,
-                catOptions: [],
-
-                comicList: [],
-                total: 0,
-                loading: false,
-
-                currentPage: 1,
-                pageInput: 1,
-                pageSize: 12,
+                /* 我的 */
+                favoritesList: [],
+                favoritesLoading: false,
 
                 /* 章节弹窗 */
                 chapterDlg: false,
@@ -116,7 +141,7 @@
                 imageViewerVisible: false,
                 currentImageIndex: 0,
 
-                /* 全屏阅读器 */
+                /* 阅读器 */
                 readerVisible: false,
                 readerImages: [],
                 readerTitle: '',
@@ -133,16 +158,15 @@
         watch: {
             currentPage: function (v) { this.pageInput = v; },
             chapterDlg: function (val) {
-                // 弹窗打开时隐藏用户徽章，关闭时恢复
-                var badge = document.getElementById('lmUserBadgeWrap');
-                var loginBtn = document.getElementById('lmLoginBtn');
-                if (badge) badge.style.display = val ? 'none' : '';
-                if (loginBtn) loginBtn.style.display = val ? 'none' : '';
+                this.setOverlayElements(val);
+            },
+            readerVisible: function (val) {
+                this.setOverlayElements(val);
             }
         },
 
         mounted: function () {
-            this.fetchComics();
+            this.loadRecommend();
             var self = this;
             this._onResize = function () { self.isMobile = window.innerWidth <= 700; };
             window.addEventListener('resize', this._onResize);
@@ -155,45 +179,65 @@
 
         methods: {
 
+            /** 弹窗/阅读器打开时隐藏浮动元素 */
+            setOverlayElements: function (hidden) {
+                var badge = document.getElementById('lmUserBadgeWrap');
+                var loginBtn = document.getElementById('lmLoginBtn');
+                var navFab = document.getElementById('lmNavFab');
+                if (badge) badge.style.display = hidden ? 'none' : '';
+                if (loginBtn) loginBtn.style.display = hidden ? 'none' : '';
+                if (navFab) navFab.style.display = hidden ? 'none' : '';
+            },
+
+            /* ======================== Tab 切换 ======================== */
+
+            switchTab: function (tab) {
+                this.activeTab = tab;
+                if (tab === 'recommend' && !this.recommendList.length) this.loadRecommend();
+                if (tab === 'search' && !this.comicList.length) this.fetchComics();
+                if (tab === 'profile' && !this.favoritesList.length) this.loadFavorites();
+            },
+
+            /* ======================== 推荐 ======================== */
+
+            loadRecommend: function () {
+                var self = this;
+                self.recommendLoading = true;
+                apiRecommend()
+                    .then(function (data) { self.recommendList = data; })
+                    .catch(function () { self.recommendList = []; })
+                    .finally(function () { self.recommendLoading = false; });
+            },
+
+            /* ======================== 搜索 ======================== */
+
             fetchComics: function () {
                 var self = this;
                 self.loading = true;
                 var from = (self.currentPage - 1) * self.pageSize;
-
                 var body = {
-                    _from: from,
-                    size: self.pageSize,
+                    _from: from, size: self.pageSize,
                     params: {
-                        searchTitle:      self.searchForm.title || '',
-                        searchType:       self.searchForm.type || '',
-                        searchtags:       self.searchForm.tags || [],
+                        searchTitle: self.searchForm.title || '',
+                        searchType: self.searchForm.type || '',
+                        searchtags: self.searchForm.tags || [],
                         searchCategories: self.searchForm.categories || [],
-                        sortField:        self.searchForm.sortField || '',
-                        sortOrder:        self.searchForm.sortOrder || 'desc',
-                        prefFilter:       self.searchForm.prefFilter || ''
+                        sortField: self.searchForm.sortField || '',
+                        sortOrder: self.searchForm.sortOrder || 'desc',
+                        prefFilter: self.searchForm.prefFilter || ''
                     }
                 };
-
                 apiSearchComic(body)
-                    .then(function (res) {
-                        self.comicList = res.items;
-                        self.total = res.total;
-                    })
-                    .catch(function (err) {
-                        console.error('获取漫画列表失败:', err);
-                        ElMessage.error('加载失败，请稍后重试');
-                        self.comicList = [];
-                        self.total = 0;
-                    })
+                    .then(function (res) { self.comicList = res.items; self.total = res.total; })
+                    .catch(function () { self.comicList = []; self.total = 0; })
                     .finally(function () { self.loading = false; });
             },
 
-            /* 标签远程搜索 */
-            onTagSearch: function (query) { this._debTagSearch(query); },
-            _doTagSearch: function (query) {
+            onTagSearch: function (q) { this._debTagSearch(q); },
+            _doTagSearch: function (q) {
                 var self = this;
                 self.tagLoading = true;
-                apiSearchTags(query || '')
+                apiSearchTags(q || '')
                     .then(function (names) {
                         var merged = names.concat(self.searchForm.tags);
                         var unique = [];
@@ -205,12 +249,11 @@
             },
             onTagDropVisible: function (v) { if (v && !this.tagOptions.length) this._doTagSearch(''); },
 
-            /* 类别远程搜索 */
-            onCatSearch: function (query) { this._debCatSearch(query); },
-            _doCatSearch: function (query) {
+            onCatSearch: function (q) { this._debCatSearch(q); },
+            _doCatSearch: function (q) {
                 var self = this;
                 self.catLoading = true;
-                apiSearchCategories(query || '')
+                apiSearchCategories(q || '')
                     .then(function (names) {
                         var merged = names.concat(self.searchForm.categories);
                         var unique = [];
@@ -222,32 +265,64 @@
             },
             onCatDropVisible: function (v) { if (v && !this.catOptions.length) this._doCatSearch(''); },
 
-            /* 搜索 / 重置 */
             doSearch: function () { this.currentPage = 1; this.fetchComics(); },
             doReset: function () {
                 this.searchForm = { title: '', type: '', tags: [], categories: [], sortField: '', sortOrder: 'desc', prefFilter: '' };
-                this.tagOptions = [];
-                this.catOptions = [];
-                this.currentPage = 1;
-                this.fetchComics();
+                this.tagOptions = []; this.catOptions = [];
+                this.currentPage = 1; this.fetchComics();
             },
 
-            /* 分页 */
             goPage: function (p) {
                 if (p < 1 || p > this.totalPages || p === this.currentPage) return;
-                this.currentPage = p;
-                this.fetchComics();
+                this.currentPage = p; this.fetchComics();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             },
             onPageJump: function (val) { if (val != null) this.goPage(val); },
 
-            /* 封面 URL */
+            /* ======================== 我的 ======================== */
+
+            loadFavorites: function () {
+                var self = this;
+                self.favoritesLoading = true;
+                apiFavorites()
+                    .then(function (data) { self.favoritesList = data; })
+                    .catch(function () { self.favoritesList = []; })
+                    .finally(function () { self.favoritesLoading = false; });
+            },
+
+            /* ======================== 收藏/厌恶 ======================== */
+
+            toggleFavorite: function (comic) {
+                apiToggleFavorite(comic.picg_id).then(function (res) {
+                    if (res.success) {
+                        if (res.action === 'favorite') { comic.favorited = true; comic.disliked = false; ElMessage.success('已收藏'); }
+                        else if (res.action === 'unfavorite') { comic.favorited = false; ElMessage.info('已取消收藏'); }
+                    } else { ElMessage.error(res.error || '操作失败'); }
+                }).catch(function () { ElMessage.error('请求失败'); });
+            },
+
+            toggleDislike: function (comic) {
+                var self = this;
+                apiToggleDislike(comic.picg_id).then(function (res) {
+                    if (res.success) {
+                        if (res.action === 'dislike') {
+                            comic.disliked = true; comic.favorited = false;
+                            ElMessage.success('已标记厌恶');
+                            if (!self.searchForm.prefFilter) {
+                                self.comicList = self.comicList.filter(function (c) { return c.id !== comic.id; });
+                            }
+                        } else if (res.action === 'undislike') { comic.disliked = false; ElMessage.info('已取消厌恶'); }
+                    } else { ElMessage.error(res.error || '操作失败'); }
+                }).catch(function () { ElMessage.error('请求失败'); });
+            },
+
+            /* ======================== 封面/标签/时间 ======================== */
+
             getCoverUrl: function (comic) {
                 if (comic.cover_key) return BASE + '/cover?key=' + comic.cover_key;
                 return '';
             },
 
-            /* 标签颜色 */
             tagColor: function (tag) {
                 var types = ['', 'success', 'warning', 'danger', 'info'];
                 var h = 0;
@@ -255,7 +330,6 @@
                 return types[Math.abs(h) % types.length];
             },
 
-            /* 时间格式化 */
             formatTime: function (t) {
                 if (!t) return '';
                 var d = new Date(t);
@@ -265,89 +339,41 @@
                     + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
             },
 
-            /* ======================== 收藏 / 厌恶 ======================== */
+            /* ======================== 章节/阅读器 ======================== */
 
-            toggleFavorite: function (comic) {
-                var self = this;
-                apiToggleFavorite(comic.id).then(function (res) {
-                    if (res.success) {
-                        if (res.action === 'favorite') {
-                            comic.favorited = true;
-                            comic.disliked = false;
-                            ElMessage.success('已收藏');
-                        } else if (res.action === 'unfavorite') {
-                            comic.favorited = false;
-                            ElMessage.info('已取消收藏');
-                        } else if (res.action === 'favorite') {
-                            comic.favorited = true;
-                            comic.disliked = false;
-                        }
-                    } else {
-                        ElMessage.error(res.error || '操作失败');
-                    }
-                }).catch(function () { ElMessage.error('请求失败'); });
-            },
-
-            toggleDislike: function (comic) {
-                var self = this;
-                apiToggleDislike(comic.id).then(function (res) {
-                    if (res.success) {
-                        if (res.action === 'dislike') {
-                            comic.disliked = true;
-                            comic.favorited = false;
-                            ElMessage.success('已标记厌恶');
-                            // 从列表中移除（默认模式下不显示厌恶的）
-                            if (!self.searchForm.prefFilter) {
-                                self.comicList = self.comicList.filter(function (c) { return c.id !== comic.id; });
-                                self.chapterDlg = false;
-                            }
-                        } else if (res.action === 'undislike') {
-                            comic.disliked = false;
-                            ElMessage.info('已取消厌恶');
-                        }
-                    } else {
-                        ElMessage.error(res.error || '操作失败');
-                    }
-                }).catch(function () { ElMessage.error('请求失败'); });
-            },
-
-            /* 打开章节弹窗 */
             openChapters: function (comic) {
-                this.chapterComic = comic;
-                this.chapterList = (comic.chapters || []).slice().sort(function (a, b) {
-                    return (a.index || 0) - (b.index || 0);
+                var self = this;
+                self.chapterComic = comic; // 先用卡片数据展示基本信息
+                self.chapterList = [];
+                self.chapterImages = []; self.chapterName = '';
+                self.chapterDlg = true;
+
+                // 请求详情接口获取完整信息（含章节）
+                apiDetail(comic.id).then(function (detail) {
+                    self.chapterComic = detail;
+                    self.chapterList = (detail.chapters || []).slice().sort(function (a, b) {
+                        return (a.index || 0) - (b.index || 0);
+                    });
+                }).catch(function (err) {
+                    ElMessage.error(err.message || '获取详情失败');
                 });
-                this.chapterImages = [];
-                this.chapterName = '';
-                this.chapterDlg = true;
             },
 
-            /* 加载章节图片 */
             loadChapter: function (chapterIndex, chapterName) {
                 var self = this;
-                self.chapterLoading = true;
-                self.chapterName = chapterName;
-                self.chapterImages = [];
+                self.chapterLoading = true; self.chapterName = chapterName; self.chapterImages = [];
                 apiChapterImages(self.chapterComic.id, chapterIndex)
                     .then(function (data) {
                         var keys = data.imageKeys || [];
-                        if (!keys.length) {
-                            ElMessage.warning('该章节暂无图片');
-                            return;
-                        }
-                        // 根据 Valkey key 生成图片 URL
-                        var urls = keys.map(function (k) {
-                            return BASE + '/pageImage?key=' + k;
-                        });
+                        if (!keys.length) { ElMessage.warning('该章节暂无图片'); return; }
+                        var urls = keys.map(function (k) { return BASE + '/pageImage?key=' + k; });
                         self.chapterImages = urls;
-                        // 全屏阅读
                         self.openReader(urls, chapterName);
                     })
                     .catch(function () { ElMessage.error('加载章节失败'); })
                     .finally(function () { self.chapterLoading = false; });
             },
 
-            /* 全屏阅读器 — 打开 */
             openReader: function (urls, chapterName) {
                 this.readerImages = urls;
                 this.readerTitle = (this.chapterComic ? this.chapterComic.title : '') + ' — ' + (chapterName || '');
@@ -355,47 +381,26 @@
                 this.readerVisible = true;
                 document.body.style.overflow = 'hidden';
                 var self = this;
-                this._onReaderKeydown = function (e) {
-                    if (e.key === 'Escape') self.closeReader();
-                };
+                this._onReaderKeydown = function (e) { if (e.key === 'Escape') self.closeReader(); };
                 document.addEventListener('keydown', this._onReaderKeydown);
             },
-            /* 全屏阅读器 — 关闭 */
             closeReader: function () {
                 this.readerVisible = false;
                 document.body.style.overflow = '';
-                if (this._onReaderKeydown) {
-                    document.removeEventListener('keydown', this._onReaderKeydown);
-                    this._onReaderKeydown = null;
-                }
+                if (this._onReaderKeydown) { document.removeEventListener('keydown', this._onReaderKeydown); this._onReaderKeydown = null; }
             },
-            /* 全屏阅读器 — 滚动追踪当前页 */
             onReaderScroll: function (e) {
-                var container = e.target;
-                var imgs = container.querySelectorAll('.reader-img');
-                var scrollTop = container.scrollTop;
-                var viewH = container.clientHeight;
-                var current = 1;
+                var c = e.target, imgs = c.querySelectorAll('.reader-img');
+                var st = c.scrollTop, vh = c.clientHeight, cur = 1;
                 for (var i = 0; i < imgs.length; i++) {
-                    var imgTop = imgs[i].offsetTop - container.offsetTop;
-                    if (imgTop <= scrollTop + viewH * 0.4) {
-                        current = i + 1;
-                    }
+                    if (imgs[i].offsetTop - c.offsetTop <= st + vh * 0.4) cur = i + 1;
                 }
-                this.readerCurrentPage = current;
+                this.readerCurrentPage = cur;
             },
 
-            /* 图片查看器 */
-            openViewer: function (idx) {
-                this.currentImageIndex = idx;
-                this.imageViewerVisible = true;
-            },
-            prevImage: function () {
-                if (this.currentImageIndex > 0) this.currentImageIndex--;
-            },
-            nextImage: function () {
-                if (this.currentImageIndex < this.chapterImages.length - 1) this.currentImageIndex++;
-            }
+            openViewer: function (idx) { this.currentImageIndex = idx; this.imageViewerVisible = true; },
+            prevImage: function () { if (this.currentImageIndex > 0) this.currentImageIndex--; },
+            nextImage: function () { if (this.currentImageIndex < this.chapterImages.length - 1) this.currentImageIndex++; }
         }
     }).use(ElementPlus).mount('#app');
 

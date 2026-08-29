@@ -9,6 +9,7 @@ import com.example.localPicmaService.tool.Valkey.ValkeyUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
 import java.util.*;
 
 /**
@@ -340,5 +341,125 @@ public class MangaAdminController {
         } catch (Exception e) {
             return List.of();
         }
+    }
+
+    // ======================== 漫画去重 ========================
+
+    /** 扫描重复的 picg_id（count > 1） */
+    @GetMapping("/dedup/scan")
+    public Map<String, Object> dedupScan() throws Exception {
+        List<Map<String, Object>> rows = SqlUtil.query(
+                "SELECT picg_id, COUNT(*) AS cnt FROM manga_source "
+                        + "WHERE picg_id IS NOT NULL AND picg_id <> '' "
+                        + "GROUP BY picg_id HAVING COUNT(*) > 1 ORDER BY cnt DESC",
+                Map.of(), 500);
+
+        List<Map<String, Object>> duplicates = new ArrayList<>();
+        int totalToRemove = 0;
+        if (rows != null) {
+            for (Map<String, Object> row : rows) {
+                String picgId = (String) row.get("picg_id");
+                int cnt = ((Number) row.get("cnt")).intValue();
+                totalToRemove += (cnt - 1);
+                duplicates.add(Map.of("picg_id", picgId, "count", cnt));
+            }
+        }
+        return Map.of("success", true, "duplicates", duplicates, "totalGroups", duplicates.size(), "totalToRemove", totalToRemove);
+    }
+
+    /** 执行去重：对每个重复 picg_id，保留 time 最晚的，删除其余（含文件夹） */
+    @PostMapping("/dedup/execute")
+    public Map<String, Object> dedupExecute() throws Exception {
+        // 1. 查找所有重复的 picg_id
+        List<Map<String, Object>> dupRows = SqlUtil.query(
+                "SELECT picg_id FROM manga_source "
+                        + "WHERE picg_id IS NOT NULL AND picg_id <> '' "
+                        + "GROUP BY picg_id HAVING COUNT(*) > 1",
+                Map.of(), 500);
+        if (dupRows == null || dupRows.isEmpty()) {
+            return Map.of("success", true, "message", "没有重复数据", "removed", 0);
+        }
+
+        String mediaRoot = systemConfig.getMediaRootPath();
+        int removed = 0;
+        List<String> logs = new ArrayList<>();
+
+        for (Map<String, Object> dupRow : dupRows) {
+            String picgId = (String) dupRow.get("picg_id");
+
+            // 2. 查询该 picg_id 的所有条目，按 time DESC 排序
+            List<Map<String, Object>> entries = SqlUtil.query(
+                    "SELECT id, type, path, directory, time FROM manga_source "
+                            + "WHERE picg_id = {?varchar|p?} ORDER BY time DESC",
+                    Map.of("p", picgId), 100);
+
+            if (entries == null || entries.size() <= 1) continue;
+
+            // 3. 保留第一条（time 最晚），删除其余
+            Map<String, Object> keep = entries.get(0);
+            String keepId = (String) keep.get("id");
+
+            for (int i = 1; i < entries.size(); i++) {
+                Map<String, Object> remove = entries.get(i);
+                String removeId = (String) remove.get("id");
+
+                // 删除文件夹
+                if (mediaRoot != null && !mediaRoot.isBlank()) {
+                    try {
+                        String typeDir = TYPE_DIR.getOrDefault(remove.get("type"), (String) remove.get("type"));
+                        String directory = (String) remove.get("directory");
+                        String path = (String) remove.get("path");
+                        if (directory != null && path != null) {
+                            directory = fixDirectory(directory, path);
+                            String comicDir = mediaRoot + "/" + typeDir + "/" + path + "/" + directory;
+                            deleteDirectory(new java.io.File(comicDir));
+                            // 也删除 zip 文件
+                            java.io.File zipFile = new java.io.File(comicDir + ".zip");
+                            if (zipFile.exists()) zipFile.delete();
+                        }
+                    } catch (Exception e) {
+                        logs.add("删除文件夹失败: " + removeId + " - " + e.getMessage());
+                    }
+                }
+
+                // 删除数据库记录
+                SqlUtil.exec("DELETE FROM manga_source WHERE id = {?varchar|id?}", Map.of("id", removeId));
+                removed++;
+                logs.add("已删除: " + picgId + " / " + removeId + " (保留: " + keepId + ")");
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("removed", removed);
+        result.put("logs", logs);
+        return result;
+    }
+
+    private String fixDirectory(String directory, String path) {
+        if (directory == null) return "";
+        if (directory.endsWith(".")) {
+            if (path != null && path.compareTo("20251010") >= 0) {
+                directory = directory.replaceAll("\\.+$", "");
+            } else {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\.+$").matcher(directory);
+                if (m.find()) {
+                    directory = directory.substring(0, m.start()) + "_".repeat(m.group().length());
+                }
+            }
+        }
+        return directory;
+    }
+
+    private void deleteDirectory(File dir) {
+        if (dir == null || !dir.exists()) return;
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) deleteDirectory(f);
+                else f.delete();
+            }
+        }
+        dir.delete();
     }
 }

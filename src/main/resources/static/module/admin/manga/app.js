@@ -67,6 +67,9 @@
 
         data: function () {
             return {
+                activeTab: 'manage',
+
+                /* 漫画管理 */
                 searchForm: { title: '', type: '', tags: [], categories: [], sortField: '', sortOrder: 'desc' },
                 sortOptions: [
                     { label: '默认（时间）', value: '' },
@@ -77,44 +80,37 @@
                     { label: '漫画', value: '漫画' },
                     { label: 'Coser', value: 'coser' }
                 ],
-
-                tagLoading: false,
-                tagOptions: [],
-                catLoading: false,
-                catOptions: [],
-
-                comicList: [],
-                total: 0,
-                loading: false,
-
-                currentPage: 1,
-                pageInput: 1,
-                pageSize: 12,
-
-                // 删除状态过滤: null=全部, 0=正常, 1=已删除
+                tagLoading: false, tagOptions: [],
+                catLoading: false, catOptions: [],
+                comicList: [], total: 0, loading: false,
+                currentPage: 1, pageInput: 1, pageSize: 12,
                 filterDel: null,
 
                 /* 章节弹窗 */
-                chapterDlg: false,
-                chapterComic: null,
-                chapterList: [],
-                chapterLoading: false,
-                chapterImages: [],
-                chapterName: '',
-                imageViewerVisible: false,
-                currentImageIndex: 0,
+                chapterDlg: false, chapterComic: null, chapterList: [],
+                chapterLoading: false, chapterImages: [], chapterName: '',
+                imageViewerVisible: false, currentImageIndex: 0,
 
-                /* 全屏阅读器 */
-                readerVisible: false,
-                readerImages: [],
-                readerTitle: '',
-                readerCurrentPage: 1,
+                /* 阅读器 */
+                readerVisible: false, readerImages: [], readerTitle: '', readerCurrentPage: 1,
 
                 /* 删除弹窗 */
-                deleteDlg: false,
-                deleteTarget: null,
-                deleteReason: '',
-                deleteLoading: false
+                deleteDlg: false, deleteTarget: null, deleteReason: '', deleteLoading: false,
+
+                /* SQLite 导入 */
+                importForm: { file: null, type: '漫画', path: '' },
+                importStatus: { running: false, status: '空闲', logs: [] },
+                importTimer: null,
+
+                /* 章节压缩 */
+                zipStatus: { running: false, status: '空闲', logs: [] },
+                zipTimer: null,
+
+                /* 漫画去重 */
+                dedupScanning: false,
+                dedupExecuting: false,
+                dedupResult: { duplicates: [], totalGroups: 0, totalToRemove: 0 },
+                dedupLogs: []
             };
         },
 
@@ -130,6 +126,10 @@
 
         mounted: function () {
             this.fetchComics();
+            this.fetchImportStatus();
+            this.fetchZipStatus();
+            this.importTimer = setInterval(this.fetchImportStatus, 2000);
+            this.zipTimer = setInterval(this.fetchZipStatus, 2000);
         },
 
         created: function () {
@@ -373,6 +373,129 @@
             },
             nextImage: function () {
                 if (this.currentImageIndex < this.chapterImages.length - 1) this.currentImageIndex++;
+            },
+
+            /* ======================== SQLite 导入 ======================== */
+
+            onFileChange: function (file) {
+                this.importForm.file = file.raw;
+            },
+            onExceedImport: function () {
+                ElMessage.warning('只能上传一个文件');
+            },
+            fetchImportStatus: function () {
+                var self = this;
+                axios.get('/page/comic/import/api/status').then(function (res) {
+                    self.importStatus = res.data;
+                    self.$nextTick(function () {
+                        var box = self.$refs.importLogBox;
+                        if (box) box.scrollTop = box.scrollHeight;
+                    });
+                });
+            },
+            startImport: function () {
+                var self = this;
+                if (!self.importForm.file) { ElMessage.error('请选择文件'); return; }
+                if (!self.importForm.type) { ElMessage.error('请选择类型'); return; }
+                if (!self.importForm.path.trim()) { ElMessage.error('请输入路径'); return; }
+
+                ElMessageBox.confirm(
+                    '确定要导入吗？将读取 SQLite 数据并写入 manga_source，随后自动压缩章节。',
+                    '确认导入', { type: 'warning' }
+                ).then(function () {
+                    var fd = new FormData();
+                    fd.append('file', self.importForm.file);
+                    fd.append('type', self.importForm.type);
+                    fd.append('path', self.importForm.path.trim());
+                    axios.post('/page/comic/import/api/upload', fd, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    }).then(function (res) {
+                        if (res.data.success) { ElMessage.success('任务已启动'); }
+                        else { ElMessage.error(res.data.error || '启动失败'); }
+                    }).catch(function () { ElMessage.error('请求失败'); });
+                }).catch(function () {});
+            },
+            stopImport: function () {
+                axios.post('/page/comic/import/api/stop');
+            },
+
+            /* ======================== 章节压缩 ======================== */
+
+            fetchZipStatus: function () {
+                var self = this;
+                axios.get('/tool/manga-zip/status').then(function (res) {
+                    self.zipStatus = res.data;
+                    self.$nextTick(function () {
+                        var box = self.$refs.zipLogBox;
+                        if (box) box.scrollTop = box.scrollHeight;
+                    });
+                });
+            },
+            startZip: function (overwrite) {
+                var self = this;
+                var msg = overwrite ? '确定要强制覆盖已有 zip 文件吗？' : '确定要开始压缩吗？';
+                ElMessageBox.confirm(msg, '确认').then(function () {
+                    axios.post('/tool/manga-zip/start', { overwrite: overwrite });
+                }).catch(function () {});
+            },
+            stopZip: function () {
+                axios.post('/tool/manga-zip/stop');
+            },
+
+            /* ======================== 漫画去重 ======================== */
+
+            scanDedup: function () {
+                var self = this;
+                self.dedupScanning = true;
+                self.dedupResult = { duplicates: [], totalGroups: 0, totalToRemove: 0 };
+                self.dedupLogs = [];
+
+                axios.get(BASE + '/dedup/scan').then(function (res) {
+                    if (res.data.success) {
+                        self.dedupResult = res.data;
+                        if (res.data.duplicates.length === 0) {
+                            ElMessage.info('没有发现重复数据');
+                        } else {
+                            ElMessage.warning('发现 ' + res.data.totalGroups + ' 组重复，共 ' + res.data.totalToRemove + ' 条待删除');
+                        }
+                    } else {
+                        ElMessage.error(res.data.error || '扫描失败');
+                    }
+                }).catch(function () {
+                    ElMessage.error('扫描请求失败');
+                }).finally(function () {
+                    self.dedupScanning = false;
+                });
+            },
+
+            executeDedup: function () {
+                var self = this;
+                ElMessageBox.confirm(
+                    '确定要执行去重吗？将保留每个 picg_id 中时间最晚的一条，删除其余条目及对应文件夹。此操作不可撤销！',
+                    '确认去重',
+                    { type: 'error', confirmButtonText: '确认执行', cancelButtonText: '取消' }
+                ).then(function () {
+                    self.dedupExecuting = true;
+                    self.dedupLogs = ['开始执行去重...'];
+
+                    axios.post(BASE + '/dedup/execute').then(function (res) {
+                        if (res.data.success) {
+                            self.dedupLogs = self.dedupLogs.concat(res.data.logs || []);
+                            self.dedupLogs.push('去重完成：共删除 ' + res.data.removed + ' 条记录');
+                            ElMessage.success('去重完成，删除 ' + res.data.removed + ' 条');
+                            // 自动重新扫描
+                            self.scanDedup();
+                        } else {
+                            self.dedupLogs.push('去重失败: ' + (res.data.error || '未知错误'));
+                            ElMessage.error(res.data.error || '去重失败');
+                        }
+                    }).catch(function () {
+                        self.dedupLogs.push('请求失败');
+                        ElMessage.error('请求失败');
+                    }).finally(function () {
+                        self.dedupExecuting = false;
+                    });
+                }).catch(function () {});
             }
         }
     }).use(ElementPlus).mount('#app');

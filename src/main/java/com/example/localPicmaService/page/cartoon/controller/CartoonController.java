@@ -127,7 +127,7 @@ public class CartoonController {
         if ("favorite".equals(prefFilter)) {
             if (currentUser != null) {
                 conditions.add("EXISTS (SELECT 1 FROM manga_user_preference p "
-                        + "WHERE p.manga_id = ms.id AND p.user_id = {?varchar|pfu?} AND p.pref_type = 1 AND p.del_flag = 0)");
+                        + "WHERE p.picg_id = ms.picg_id AND p.user_id = {?varchar|pfu?} AND p.pref_type = 1 AND p.del_flag = 0)");
                 queryParams.put("pfu", currentUser);
             } else {
                 return Map.of("items", List.of(), "total", 0);
@@ -135,7 +135,7 @@ public class CartoonController {
         } else if ("dislike".equals(prefFilter)) {
             if (currentUser != null) {
                 conditions.add("EXISTS (SELECT 1 FROM manga_user_preference p "
-                        + "WHERE p.manga_id = ms.id AND p.user_id = {?varchar|pdu?} AND p.pref_type = -1 AND p.del_flag = 0)");
+                        + "WHERE p.picg_id = ms.picg_id AND p.user_id = {?varchar|pdu?} AND p.pref_type = -1 AND p.del_flag = 0)");
                 queryParams.put("pdu", currentUser);
             } else {
                 return Map.of("items", List.of(), "total", 0);
@@ -143,7 +143,7 @@ public class CartoonController {
         } else {
             if (currentUser != null) {
                 conditions.add("NOT EXISTS (SELECT 1 FROM manga_user_preference p "
-                        + "WHERE p.manga_id = ms.id AND p.user_id = {?varchar|pdu?} AND p.pref_type = -1 AND p.del_flag = 0)");
+                        + "WHERE p.picg_id = ms.picg_id AND p.user_id = {?varchar|pdu?} AND p.pref_type = -1 AND p.del_flag = 0)");
                 queryParams.put("pdu", currentUser);
             }
         }
@@ -183,12 +183,12 @@ public class CartoonController {
 
         // 查询数据，附带当前用户的收藏状态
         String favSelect = currentUser != null
-                ? ", (SELECT p.pref_type FROM manga_user_preference p WHERE p.manga_id = ms.id AND p.user_id = {?varchar|favu?} AND p.del_flag = 0) AS my_pref"
+                ? ", (SELECT p.pref_type FROM manga_user_preference p WHERE p.picg_id = ms.picg_id AND p.user_id = {?varchar|favu?} AND p.del_flag = 0) AS my_pref"
                 : ", NULL AS my_pref";
         if (currentUser != null) queryParams.put("favu", currentUser);
 
-        String dataSql = "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, ms.description, "
-                + "ms.tags, ms.categories, ms.pages_count, ms.chapters, ms.likes, ms.comments, ms.time, ms.path, ms.directory"
+        String dataSql = "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, "
+                + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory"
                 + favSelect
                 + " FROM manga_source ms WHERE " + where + " " + orderBy + " LIMIT " + size + " OFFSET " + from;
         List<Map<String, Object>> rows = SqlUtil.query(dataSql, queryParams);
@@ -198,7 +198,6 @@ public class CartoonController {
             Map<String, Object> item = new LinkedHashMap<>(row);
             item.put("tags", parseJsonArray(row.get("tags")));
             item.put("categories", parseJsonArray(row.get("categories")));
-            item.put("chapters", parseJsonArray(row.get("chapters")));
 
             // 收藏状态
             Object myPref = row.get("my_pref");
@@ -223,19 +222,131 @@ public class CartoonController {
         return result;
     }
 
-    // ======================== 收藏/厌恶 切换 ========================
+    // ======================== 随机推荐 ========================
+
+    @GetMapping("/recommend")
+    public Map<String, Object> recommend() throws Exception {
+        String currentUser = getCurrentUserId();
+        Map<String, Object> params = new LinkedHashMap<>();
+        if (currentUser != null) params.put("uid", currentUser);
+
+        String excludeClause = currentUser != null
+                ? " AND NOT EXISTS (SELECT 1 FROM manga_user_preference dp WHERE dp.picg_id = ms.picg_id AND dp.user_id = {?varchar|uid?} AND dp.del_flag = 0)"
+                : "";
+
+        List<Map<String, Object>> rows = SqlUtil.query(
+                "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, "
+                        + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory"
+                        + " FROM manga_source ms"
+                        + " WHERE ms.del_flag = 0" + excludeClause
+                        + " ORDER BY RANDOM() LIMIT 20",
+                params, 20);
+
+        return buildCardList(rows);
+    }
+
+    // ======================== 收藏列表 ========================
+
+    @GetMapping("/favorites")
+    public Map<String, Object> favorites() throws Exception {
+        String currentUser = getCurrentUserId();
+        if (currentUser == null) return Map.of("items", List.of(), "total", 0);
+
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("uid", currentUser);
+
+        List<Map<String, Object>> rows = SqlUtil.query(
+                "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, "
+                        + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory, 1 AS my_pref"
+                        + " FROM manga_user_preference p"
+                        + " JOIN manga_source ms ON ms.picg_id = p.picg_id AND ms.del_flag = 0"
+                        + " WHERE p.user_id = {?varchar|uid?} AND p.pref_type = 1 AND p.del_flag = 0"
+                        + " ORDER BY p.create_date DESC",
+                params, 200);
+
+        return buildCardList(rows);
+    }
+
+    /** 统一构建卡片列表（推荐/收藏共用） */
+    private Map<String, Object> buildCardList(List<Map<String, Object>> rows) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        if (rows != null) {
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> item = new LinkedHashMap<>(row);
+                item.put("tags", parseJsonArray(row.get("tags")));
+                item.put("categories", parseJsonArray(row.get("categories")));
+                Object myPref = row.get("my_pref");
+                item.put("favorited", myPref instanceof Number && ((Number) myPref).intValue() == 1);
+                item.put("disliked", myPref instanceof Number && ((Number) myPref).intValue() == -1);
+                item.remove("my_pref");
+                String coverValkeyKey = row.get("id") + "cover";
+                try {
+                    String coverPath = resolveFilePath(row, "cover.jpg");
+                    valkeyUtil.setEx(coverValkeyKey, coverPath, 3600);
+                } catch (Exception ignored) {}
+                item.put("cover_key", coverValkeyKey);
+                items.add(item);
+            }
+        }
+        return Map.of("items", items, "total", items.size());
+    }
+
+    // ======================== 漫画详情（统一接口） ========================
+
+    @GetMapping("/detail")
+    public Map<String, Object> detail(@RequestParam String id) throws Exception {
+        String currentUser = getCurrentUserId();
+        String favSelect = currentUser != null
+                ? ", (SELECT p.pref_type FROM manga_user_preference p WHERE p.picg_id = ms.picg_id AND p.user_id = {?varchar|uid?} AND p.del_flag = 0) AS my_pref"
+                : ", NULL AS my_pref";
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("id", id);
+        if (currentUser != null) params.put("uid", currentUser);
+
+        Map<String, Object> row = SqlUtil.row(
+                "SELECT ms.id, ms.type, ms.title, ms.subtitle, ms.author, ms.chinese_team, ms.description, "
+                        + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory, "
+                        + "ms.chapters, ms.likes, ms.comments, ms.creator, ms.size"
+                        + favSelect
+                        + " FROM manga_source ms WHERE ms.id = {?varchar|id?} AND ms.del_flag = 0",
+                params);
+
+        if (row == null) return Map.of("success", false, "error", "漫画不存在");
+
+        Map<String, Object> item = new LinkedHashMap<>(row);
+        item.put("tags", parseJsonArray(row.get("tags")));
+        item.put("categories", parseJsonArray(row.get("categories")));
+        item.put("chapters", parseJsonArray(row.get("chapters")));
+        item.put("creator", parseJsonObj(row.get("creator")));
+        Object myPref = row.get("my_pref");
+        item.put("favorited", myPref instanceof Number && ((Number) myPref).intValue() == 1);
+        item.put("disliked", myPref instanceof Number && ((Number) myPref).intValue() == -1);
+        item.remove("my_pref");
+
+        // 封面
+        String coverValkeyKey = id + "cover";
+        try {
+            String coverPath = resolveFilePath(row, "cover.jpg");
+            valkeyUtil.setEx(coverValkeyKey, coverPath, 3600);
+        } catch (Exception ignored) {}
+        item.put("cover_key", coverValkeyKey);
+
+        return Map.of("success", true, "data", item);
+    }
+
+    // ======================== 收藏/厌恶 切换（基于 picg_id） ========================
 
     @PostMapping("/toggleFavorite")
     public Map<String, Object> toggleFavorite(@RequestBody JSONObject body) throws Exception {
         String userId = getCurrentUserId();
         if (userId == null) return Map.of("success", false, "error", "未登录");
 
-        String mangaId = body.getStr("mangaId");
-        if (mangaId == null) return Map.of("success", false, "error", "缺少 mangaId");
+        String picgId = body.getStr("picgId");
+        if (picgId == null) return Map.of("success", false, "error", "缺少 picgId");
 
         Map<String, Object> existing = SqlUtil.row(
-                "SELECT id, pref_type FROM manga_user_preference WHERE user_id = {?varchar|u?} AND manga_id = {?varchar|m?} AND del_flag = 0",
-                Map.of("u", userId, "m", mangaId));
+                "SELECT id, pref_type FROM manga_user_preference WHERE user_id = {?varchar|u?} AND picg_id = {?varchar|p?} AND del_flag = 0",
+                Map.of("u", userId, "p", picgId));
 
         if (existing != null) {
             int type = ((Number) existing.get("pref_type")).intValue();
@@ -249,9 +360,9 @@ public class CartoonController {
             }
         } else {
             String id = UUID.randomUUID().toString().replace("-", "").substring(0, 32);
-            SqlUtil.exec("INSERT INTO manga_user_preference (id, user_id, manga_id, pref_type, create_date) "
-                            + "VALUES ({?varchar|id?}, {?varchar|u?}, {?varchar|m?}, 1, NOW())",
-                    Map.of("id", id, "u", userId, "m", mangaId));
+            SqlUtil.exec("INSERT INTO manga_user_preference (id, user_id, picg_id, pref_type, create_date) "
+                            + "VALUES ({?varchar|id?}, {?varchar|u?}, {?varchar|p?}, 1, NOW())",
+                    Map.of("id", id, "u", userId, "p", picgId));
             return Map.of("success", true, "action", "favorite");
         }
     }
@@ -261,12 +372,12 @@ public class CartoonController {
         String userId = getCurrentUserId();
         if (userId == null) return Map.of("success", false, "error", "未登录");
 
-        String mangaId = body.getStr("mangaId");
-        if (mangaId == null) return Map.of("success", false, "error", "缺少 mangaId");
+        String picgId = body.getStr("picgId");
+        if (picgId == null) return Map.of("success", false, "error", "缺少 picgId");
 
         Map<String, Object> existing = SqlUtil.row(
-                "SELECT id, pref_type FROM manga_user_preference WHERE user_id = {?varchar|u?} AND manga_id = {?varchar|m?} AND del_flag = 0",
-                Map.of("u", userId, "m", mangaId));
+                "SELECT id, pref_type FROM manga_user_preference WHERE user_id = {?varchar|u?} AND picg_id = {?varchar|p?} AND del_flag = 0",
+                Map.of("u", userId, "p", picgId));
 
         if (existing != null) {
             int type = ((Number) existing.get("pref_type")).intValue();
@@ -280,9 +391,9 @@ public class CartoonController {
             }
         } else {
             String id = UUID.randomUUID().toString().replace("-", "").substring(0, 32);
-            SqlUtil.exec("INSERT INTO manga_user_preference (id, user_id, manga_id, pref_type, create_date) "
-                            + "VALUES ({?varchar|id?}, {?varchar|u?}, {?varchar|m?}, -1, NOW())",
-                    Map.of("id", id, "u", userId, "m", mangaId));
+            SqlUtil.exec("INSERT INTO manga_user_preference (id, user_id, picg_id, pref_type, create_date) "
+                            + "VALUES ({?varchar|id?}, {?varchar|u?}, {?varchar|p?}, -1, NOW())",
+                    Map.of("id", id, "u", userId, "p", picgId));
             return Map.of("success", true, "action", "dislike");
         }
     }
@@ -547,6 +658,18 @@ public class CartoonController {
             return result;
         } catch (Exception e) {
             return List.of();
+        }
+    }
+
+    private Map<String, Object> parseJsonObj(Object value) {
+        if (value == null) return Map.of();
+        if (value instanceof Map) return (Map<String, Object>) value;
+        String str = value.toString();
+        if (str.isBlank() || "null".equals(str)) return Map.of();
+        try {
+            return JSONUtil.parseObj(str).toBean(Map.class);
+        } catch (Exception e) {
+            return Map.of();
         }
     }
 

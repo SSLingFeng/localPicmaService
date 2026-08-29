@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>漫画管理 - 后台</title>
+  <title>漫画后台管理</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
@@ -27,6 +27,41 @@
       border-radius: var(--radius);
     }
     .filter-bar label { color: var(--text-muted); font-size: 13px; }
+    .admin-tabs {
+      display: flex; justify-content: center; gap: 8px;
+      max-width: 1100px; margin: 16px auto 0; padding: 0 24px;
+    }
+    .admin-tab-item {
+      padding: 10px 28px; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 14px; cursor: pointer;
+      transition: all .2s;
+    }
+    .admin-tab-item:hover { border-color: var(--accent); color: var(--accent); }
+    .admin-tab-item.active {
+      background: var(--accent); border-color: var(--accent);
+      color: #090912; font-weight: 600;
+    }
+    .admin-tab-item i { margin-right: 4px; }
+    .admin-panel { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    .import-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; margin-bottom: 20px;
+    }
+    .import-panel h3 { color: var(--text); margin-bottom: 16px; font-size: 16px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .stat-item {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 12px; text-align: center;
+    }
+    .stat-val { font-size: 22px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .log-box {
+      max-height: 400px; overflow-y: auto; font-family: monospace;
+      font-size: 12px; line-height: 1.8; color: var(--text-muted);
+      background: var(--bg); padding: 12px; border-radius: 4px;
+    }
+    .log-box div { white-space: pre-wrap; }
   </style>
 </head>
 
@@ -35,143 +70,329 @@
 
   <!-- 页头 -->
   <header class="page-header">
-    <h1 class="site-title"><i class="el-icon-notebook"></i> 漫画管理（后台）</h1>
-    <p class="site-subtitle">共 <strong>{{ total }}</strong> 部作品
-      <span v-if="filterDel===0" style="color:var(--accent-light)"> · 仅正常</span>
-      <span v-if="filterDel===1" style="color:#e74c3c"> · 仅已删除</span>
-      <span v-if="filterDel===null" style="color:var(--text-muted)"> · 全部</span>
-    </p>
+    <h1 class="site-title"><i class="el-icon-setting"></i> 漫画后台管理</h1>
   </header>
 
-  <!-- 搜索栏 -->
-  <section class="search-panel">
-    <el-form :inline="true" :model="searchForm" class="search-form" @submit.prevent="doSearch">
-      <el-form-item label="标题">
-        <el-input v-model="searchForm.title" placeholder="输入漫画标题..." clearable prefix-icon="el-icon-search"
-                  @keyup.enter="doSearch" style="width:220px" />
-      </el-form-item>
-      <el-form-item label="类型">
-        <el-select v-model="searchForm.type" placeholder="全部类型" clearable style="width:140px">
-          <el-option v-for="o in typeOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="标签">
-        <el-select v-model="searchForm.tags" multiple filterable remote reserve-keyword
-                   placeholder="输入关键词搜索标签..." :remote-method="onTagSearch" :loading="tagLoading"
-                   @visible-change="onTagDropVisible" style="width:280px">
-          <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="类别">
-        <el-select v-model="searchForm.categories" multiple filterable remote reserve-keyword
-                   placeholder="输入关键词搜索类别..." :remote-method="onCatSearch" :loading="catLoading"
-                   @visible-change="onCatDropVisible" style="width:280px">
-          <el-option v-for="c in catOptions" :key="c" :label="c" :value="c" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="排序">
-        <el-select v-model="searchForm.sortField" placeholder="默认（时间）" clearable style="width:140px">
-          <el-option v-for="o in sortOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" icon="el-icon-search" @click="doSearch">搜索</el-button>
-        <el-button icon="el-icon-refresh-left" @click="doReset">重置</el-button>
-      </el-form-item>
-    </el-form>
-  </section>
-
-  <!-- 过滤栏 -->
-  <section class="filter-bar" style="max-width:1100px;margin:16px auto 0;padding:0 24px">
-    <label>删除状态：</label>
-    <el-radio-group v-model="filterDel" size="small" @change="doSearch">
-      <el-radio-button :label="null">全部</el-radio-button>
-      <el-radio-button :label="0">正常</el-radio-button>
-      <el-radio-button :label="1">已删除</el-radio-button>
-    </el-radio-group>
-  </section>
-
-  <!-- 漫画列表 -->
-  <section class="comic-section" v-loading="loading" element-loading-text="加载中...">
-    <transition-group name="card-anim" tag="div" class="comic-grid" v-if="comicList.length">
-      <div v-for="(comic, idx) in comicList" :key="comic.id" class="comic-card"
-           :class="{ 'deleted-card': comic.del_flag }"
-           :style="{ animationDelay: idx * 0.035 + 's' }">
-        <!-- 封面 -->
-        <div class="comic-cover" @click="openChapters(comic)">
-          <div class="cover-fallback">
-            <i class="el-icon-picture-outline"></i>
-            <span>{{ comic.title ? comic.title.charAt(0) : '?' }}</span>
-          </div>
-          <img v-if="getCoverUrl(comic)" :src="getCoverUrl(comic)" :alt="comic.title"
-               loading="lazy" @error="$event.target.style.display='none'" />
-          <div class="cover-badges">
-            <span class="badge badge-type" :class="comic.type === '漫画' ? 'type-comic' : 'type-coser'">{{ comic.type }}</span>
-            <span class="badge badge-pages"><i class="el-icon-document"></i> {{ comic.pages_count }}P</span>
-          </div>
-          <div v-if="comic.del_flag" class="del-badge">已删除</div>
-        </div>
-        <!-- 信息 -->
-        <div class="comic-info">
-          <h3 class="comic-title" :title="comic.title">{{ comic.title }}</h3>
-          <div class="comic-meta">
-            <span v-if="comic.author" class="meta-item"><i class="el-icon-user"></i>{{ comic.author }}</span>
-            <span v-if="comic.chinese_team" class="meta-item"><i class="el-icon-s-custom"></i>{{ comic.chinese_team }}</span>
-          </div>
-          <div class="comic-tags" v-if="comic.tags && comic.tags.length">
-            <el-tag v-for="tag in comic.tags.slice(0,4)" :key="'t-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
-            <el-tag v-if="comic.tags.length > 4" size="small" type="info" effect="dark">+{{ comic.tags.length - 4 }}</el-tag>
-          </div>
-          <div class="comic-cats" v-if="comic.categories && comic.categories.length">
-            <el-tag v-for="cat in comic.categories.slice(0,3)" :key="'c-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
-            <el-tag v-if="comic.categories.length > 3" size="small" effect="plain" type="info">+{{ comic.categories.length - 3 }}</el-tag>
-          </div>
-          <div v-if="comic.del_flag && comic.del_reason" class="del-reason">
-            <i class="el-icon-warning"></i> {{ comic.del_reason }}
-          </div>
-          <!-- 操作按钮 -->
-          <div style="margin-top:8px;display:flex;gap:6px">
-            <el-button v-if="!comic.del_flag" size="small" type="danger" @click.stop="openDeleteDlg(comic)">删除</el-button>
-            <el-button v-if="comic.del_flag" size="small" type="success" @click.stop="doRestore(comic)">恢复</el-button>
-          </div>
-        </div>
-      </div>
-    </transition-group>
-    <el-empty v-if="!loading && !comicList.length" description="暂无作品数据" />
-  </section>
-
-  <!-- 分页 -->
-  <footer class="pagination-bar" v-if="total > 0">
-    <div class="pagination-inner">
-      <el-tooltip content="首页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(1)">&laquo;</el-button>
-      </el-tooltip>
-      <el-tooltip content="上一页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(currentPage-1)">&lsaquo;</el-button>
-      </el-tooltip>
-      <div class="pg-jump">
-        <el-input-number v-model="pageInput" :min="1" :max="totalPages" size="small" :controls="false" readonly @change="onPageJump" />
-        <span class="pg-slash">/</span>
-        <span class="pg-total">{{ totalPages }}</span>
-      </div>
-      <el-tooltip content="下一页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(currentPage+1)">&rsaquo;</el-button>
-      </el-tooltip>
-      <el-tooltip content="最后一页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(totalPages)">&raquo;</el-button>
-      </el-tooltip>
+  <!-- Tab 导航 -->
+  <nav class="admin-tabs">
+    <div class="admin-tab-item" :class="{ active: activeTab === 'manage' }" @click="activeTab = 'manage'">
+      <i class="el-icon-notebook"></i> 漫画管理
     </div>
-  </footer>
+    <div class="admin-tab-item" :class="{ active: activeTab === 'import' }" @click="activeTab = 'import'">
+      <i class="el-icon-upload2"></i> SQLite 导入
+    </div>
+    <div class="admin-tab-item" :class="{ active: activeTab === 'zip' }" @click="activeTab = 'zip'">
+      <i class="el-icon-folder-opened"></i> 章节压缩
+    </div>
+    <div class="admin-tab-item" :class="{ active: activeTab === 'dedup' }" @click="activeTab = 'dedup'">
+      <i class="el-icon-copy-document"></i> 漫画去重
+    </div>
+  </nav>
 
-  <!-- 漫画详情 & 章节弹窗 -->
+  <!-- ==================== 漫画管理 Tab ==================== -->
+  <div v-show="activeTab === 'manage'" class="admin-panel" style="padding-top:16px">
+
+    <!-- 搜索栏 -->
+    <section class="search-panel">
+      <el-form :inline="true" :model="searchForm" class="search-form" @submit.prevent="doSearch">
+        <el-form-item label="标题">
+          <el-input v-model="searchForm.title" placeholder="输入漫画标题..." clearable prefix-icon="el-icon-search"
+                    @keyup.enter="doSearch" style="width:220px" />
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="searchForm.type" placeholder="全部类型" clearable style="width:140px">
+            <el-option v-for="o in typeOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-select v-model="searchForm.tags" multiple filterable remote reserve-keyword
+                     placeholder="输入关键词搜索标签..." :remote-method="onTagSearch" :loading="tagLoading"
+                     @visible-change="onTagDropVisible" style="width:280px">
+            <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类别">
+          <el-select v-model="searchForm.categories" multiple filterable remote reserve-keyword
+                     placeholder="输入关键词搜索类别..." :remote-method="onCatSearch" :loading="catLoading"
+                     @visible-change="onCatDropVisible" style="width:280px">
+            <el-option v-for="c in catOptions" :key="c" :label="c" :value="c" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-select v-model="searchForm.sortField" placeholder="默认（时间）" clearable style="width:140px">
+            <el-option v-for="o in sortOptions" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" @click="doSearch">搜索</el-button>
+          <el-button icon="el-icon-refresh-left" @click="doReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </section>
+
+    <!-- 过滤栏 -->
+    <section class="filter-bar" style="margin-top:16px">
+      <label>删除状态：</label>
+      <el-radio-group v-model="filterDel" size="small" @change="doSearch">
+        <el-radio-button :label="null">全部</el-radio-button>
+        <el-radio-button :label="0">正常</el-radio-button>
+        <el-radio-button :label="1">已删除</el-radio-button>
+      </el-radio-group>
+      <span style="margin-left:auto;color:var(--text-muted);font-size:13px">
+        共 <strong style="color:var(--accent-light)">{{ total }}</strong> 部作品
+      </span>
+    </section>
+
+    <!-- 漫画列表 -->
+    <section class="comic-section" v-loading="loading" element-loading-text="加载中..." style="padding:0;margin-top:16px">
+      <transition-group name="card-anim" tag="div" class="comic-grid" v-if="comicList.length">
+        <div v-for="(comic, idx) in comicList" :key="comic.id" class="comic-card"
+             :class="{ 'deleted-card': comic.del_flag }"
+             :style="{ animationDelay: idx * 0.035 + 's' }">
+          <div class="comic-cover" @click="openChapters(comic)">
+            <div class="cover-fallback">
+              <i class="el-icon-picture-outline"></i>
+              <span>{{ comic.title ? comic.title.charAt(0) : '?' }}</span>
+            </div>
+            <img v-if="getCoverUrl(comic)" :src="getCoverUrl(comic)" :alt="comic.title"
+                 loading="lazy" @error="$event.target.style.display='none'" />
+            <div class="cover-badges">
+              <span class="badge badge-type" :class="comic.type === '漫画' ? 'type-comic' : 'type-coser'">{{ comic.type }}</span>
+              <span class="badge badge-pages"><i class="el-icon-document"></i> {{ comic.pages_count }}P</span>
+            </div>
+            <div v-if="comic.del_flag" class="del-badge">已删除</div>
+          </div>
+          <div class="comic-info">
+            <h3 class="comic-title" :title="comic.title">{{ comic.title }}</h3>
+            <div class="comic-meta">
+              <span v-if="comic.author" class="meta-item"><i class="el-icon-user"></i>{{ comic.author }}</span>
+              <span v-if="comic.chinese_team" class="meta-item"><i class="el-icon-s-custom"></i>{{ comic.chinese_team }}</span>
+            </div>
+            <div class="comic-tags" v-if="comic.tags && comic.tags.length">
+              <el-tag v-for="tag in comic.tags.slice(0,4)" :key="'t-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
+              <el-tag v-if="comic.tags.length > 4" size="small" type="info" effect="dark">+{{ comic.tags.length - 4 }}</el-tag>
+            </div>
+            <div class="comic-cats" v-if="comic.categories && comic.categories.length">
+              <el-tag v-for="cat in comic.categories.slice(0,3)" :key="'c-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
+              <el-tag v-if="comic.categories.length > 3" size="small" effect="plain" type="info">+{{ comic.categories.length - 3 }}</el-tag>
+            </div>
+            <div v-if="comic.del_flag && comic.del_reason" class="del-reason">
+              <i class="el-icon-warning"></i> {{ comic.del_reason }}
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <el-button v-if="!comic.del_flag" size="small" type="danger" @click.stop="openDeleteDlg(comic)">删除</el-button>
+              <el-button v-if="comic.del_flag" size="small" type="success" @click.stop="doRestore(comic)">恢复</el-button>
+            </div>
+          </div>
+        </div>
+      </transition-group>
+      <el-empty v-if="!loading && !comicList.length" description="暂无作品数据" />
+    </section>
+
+    <!-- 分页 -->
+    <footer class="pagination-bar" v-if="total > 0" style="margin:20px auto 50px;padding:0">
+      <div class="pagination-inner">
+        <el-tooltip content="首页" placement="top" :show-after="500">
+          <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(1)">&laquo;</el-button>
+        </el-tooltip>
+        <el-tooltip content="上一页" placement="top" :show-after="500">
+          <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(currentPage-1)">&lsaquo;</el-button>
+        </el-tooltip>
+        <div class="pg-jump">
+          <el-input-number v-model="pageInput" :min="1" :max="totalPages" size="small" :controls="false" readonly @change="onPageJump" />
+          <span class="pg-slash">/</span>
+          <span class="pg-total">{{ totalPages }}</span>
+        </div>
+        <el-tooltip content="下一页" placement="top" :show-after="500">
+          <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(currentPage+1)">&rsaquo;</el-button>
+        </el-tooltip>
+        <el-tooltip content="最后一页" placement="top" :show-after="500">
+          <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(totalPages)">&raquo;</el-button>
+        </el-tooltip>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ==================== SQLite 导入 Tab ==================== -->
+  <div v-show="activeTab === 'import'" class="admin-panel" style="padding-top:16px">
+
+    <div class="import-panel">
+      <h3>导入配置</h3>
+      <el-form label-width="80px" size="small">
+        <el-form-item label="SQLite 文件">
+          <el-upload ref="fileUpload" action="" :auto-upload="false" :show-file-list="true"
+                     :limit="1" accept=".db" :on-change="onFileChange" :on-exceed="onExceedImport">
+            <el-button icon="el-icon-upload2">选择 .db 文件</el-button>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="importForm.type" placeholder="选择类型" style="width:200px">
+            <el-option label="漫画" value="漫画" />
+            <el-option label="Coser" value="coser" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="路径">
+          <el-input v-model="importForm.path" placeholder="如 20250610" style="width:200px" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :disabled="importStatus.running || !importForm.file" @click="startImport">
+            开始导入
+          </el-button>
+          <el-button type="danger" :disabled="!importStatus.running" @click="stopImport">
+            停止
+          </el-button>
+        </el-form-item>
+      </el-form>
+      <div v-if="importStatus.running" style="color:var(--accent);font-size:13px;margin-top:8px">
+        {{ importStatus.status }}
+      </div>
+    </div>
+
+    <div class="import-panel">
+      <h3>执行进度</h3>
+      <div class="stat-grid">
+        <div class="stat-item">
+          <div class="stat-val">{{ importStatus.totalItems || 0 }}</div>
+          <div class="stat-label">总记录</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ importStatus.processedItems || 0 }}</div>
+          <div class="stat-label">已导入</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ importStatus.zippedChapters || 0 }}</div>
+          <div class="stat-label">已压缩章节</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ importStatus.deletedFolders || 0 }}</div>
+          <div class="stat-label">已删除文件夹</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="import-panel">
+      <h3>执行日志</h3>
+      <div ref="importLogBox" class="log-box">
+        <div v-for="(line, i) in importStatus.logs" :key="i">{{ line }}</div>
+        <div v-if="!importStatus.logs || !importStatus.logs.length" style="color:#3a3650">暂无日志</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 章节压缩 Tab ==================== -->
+  <div v-show="activeTab === 'zip'" class="admin-panel" style="padding-top:16px">
+
+    <div class="import-panel">
+      <h3>漫画章节压缩</h3>
+      <el-row :gutter="16" align="middle">
+        <el-col :span="8">
+          <el-button type="primary" :disabled="zipStatus.running" @click="startZip(false)">
+            开始压缩
+          </el-button>
+          <el-button :disabled="zipStatus.running" @click="startZip(true)" style="margin-left:8px">
+            强制覆盖
+          </el-button>
+        </el-col>
+        <el-col :span="4">
+          <el-button type="danger" :disabled="!zipStatus.running" @click="stopZip">
+            停止
+          </el-button>
+        </el-col>
+        <el-col :span="12" style="text-align:right;color:var(--text-muted)">
+          <span v-if="zipStatus.running" style="color:var(--accent)">{{ zipStatus.status }}</span>
+          <span v-else>{{ zipStatus.status || '空闲' }}</span>
+        </el-col>
+      </el-row>
+    </div>
+
+    <div class="import-panel">
+      <h3>执行进度</h3>
+      <div class="stat-grid">
+        <div class="stat-item">
+          <div class="stat-val">{{ zipStatus.totalComics || 0 }}</div>
+          <div class="stat-label">漫画总数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ zipStatus.processedComics || 0 }}</div>
+          <div class="stat-label">已处理</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ zipStatus.processedChapters || 0 }}</div>
+          <div class="stat-label">已压缩</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ zipStatus.skippedChapters || 0 }}</div>
+          <div class="stat-label">已跳过</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="import-panel">
+      <h3>执行日志</h3>
+      <div ref="zipLogBox" class="log-box">
+        <div v-for="(line, i) in zipStatus.logs" :key="i">{{ line }}</div>
+        <div v-if="!zipStatus.logs || !zipStatus.logs.length" style="color:#3a3650">暂无日志</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 漫画去重 Tab ==================== -->
+  <div v-show="activeTab === 'dedup'" class="admin-panel" style="padding-top:16px">
+
+    <div class="import-panel">
+      <h3>漫画去重（按 picg_id）</h3>
+      <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px">
+        扫描 manga_source 表中 picg_id 重复的条目，保留时间最晚的一条，删除其余条目及其文件夹。
+      </p>
+      <el-row :gutter="16" align="middle">
+        <el-col :span="12">
+          <el-button type="primary" :disabled="dedupScanning" @click="scanDedup">
+            <i class="el-icon-search"></i> 扫描重复
+          </el-button>
+          <el-button type="danger" :disabled="!dedupResult.duplicates.length || dedupExecuting" @click="executeDedup">
+            <i class="el-icon-delete"></i> 执行去重
+          </el-button>
+        </el-col>
+      </el-row>
+    </div>
+
+    <!-- 扫描结果 -->
+    <div class="import-panel" v-if="dedupResult.duplicates.length">
+      <h3>扫描结果</h3>
+      <div class="stat-grid" style="margin-bottom:16px">
+        <div class="stat-item">
+          <div class="stat-val">{{ dedupResult.totalGroups }}</div>
+          <div class="stat-label">重复组数</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-val">{{ dedupResult.totalToRemove }}</div>
+          <div class="stat-label">待删除条目</div>
+        </div>
+      </div>
+      <el-table :data="dedupResult.duplicates" stripe size="small" max-height="300" style="width:100%">
+        <el-table-column prop="picg_id" label="picg_id" min-width="200" />
+        <el-table-column prop="count" label="重复次数" width="100" align="center" />
+      </el-table>
+    </div>
+
+    <!-- 执行日志 -->
+    <div class="import-panel" v-if="dedupLogs.length">
+      <h3>执行日志</h3>
+      <div class="log-box">
+        <div v-for="(line, i) in dedupLogs" :key="i">{{ line }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 弹窗 ==================== -->
+
+  <!-- 漫画详情弹窗 -->
   <el-dialog v-model="chapterDlg" width="700px" top="4vh" custom-class="comic-detail-dlg">
     <div v-if="chapterComic" class="comic-detail">
       <div class="detail-header">
         <div class="detail-cover">
           <img v-if="getCoverUrl(chapterComic)" :src="getCoverUrl(chapterComic)" :alt="chapterComic.title" />
-          <div v-else class="detail-cover-fallback">
-            <i class="el-icon-picture-outline"></i>
-          </div>
+          <div v-else class="detail-cover-fallback"><i class="el-icon-picture-outline"></i></div>
         </div>
         <div class="detail-info">
           <h2 class="detail-title">{{ chapterComic.title }}</h2>
@@ -221,18 +442,6 @@
     </template>
   </el-dialog>
 
-  <!-- 图片查看器 -->
-  <el-dialog v-model="imageViewerVisible" width="90%" top="3vh" custom-class="image-viewer-dlg">
-    <div style="text-align:center;position:relative">
-      <img :src="chapterImages[currentImageIndex]" style="max-width:100%;max-height:80vh;border-radius:4px" />
-      <div style="margin-top:8px;color:var(--text-muted);font-size:13px">{{ currentImageIndex + 1 }} / {{ chapterImages.length }}</div>
-      <el-button v-if="currentImageIndex > 0" icon="el-icon-arrow-left" circle size="small"
-                 style="position:absolute;left:0;top:50%;transform:translateY(-50%)" @click="prevImage"></el-button>
-      <el-button v-if="currentImageIndex < chapterImages.length - 1" icon="el-icon-arrow-right" circle size="small"
-                 style="position:absolute;right:0;top:50%;transform:translateY(-50%)" @click="nextImage"></el-button>
-    </div>
-  </el-dialog>
-
   <!-- 全屏阅读器 -->
   <transition name="reader-fade">
     <div v-if="readerVisible" class="reader-overlay">
@@ -244,8 +453,6 @@
     </div>
   </transition>
 
-  <!-- 返回按钮 -->
-  <a href="/home" class="back-fab">&larr; 首页</a>
 </div>
 
 <script src="/public/res/module/auth.js"></script>

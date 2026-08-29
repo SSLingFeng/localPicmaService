@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>漫画管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>漫画</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
@@ -13,130 +13,238 @@
 <body>
 <div id="app" v-cloak>
 
-  <!-- 页头 -->
+  <!-- ========== 页头 ========== -->
   <header class="page-header">
-    <h1 class="site-title"><i class="el-icon-notebook"></i> 漫画管理</h1>
+    <h1 class="site-title"><i class="el-icon-notebook"></i> 漫画</h1>
     <p class="site-subtitle">共收录 <strong>{{ total }}</strong> 部作品</p>
   </header>
 
-  <!-- 搜索栏 -->
-  <section class="search-panel">
-    <el-form :inline="true" :model="searchForm" class="search-form" @submit.prevent="doSearch">
-      <el-form-item label="标题">
-        <el-input v-model="searchForm.title" placeholder="输入漫画标题..." clearable prefix-icon="el-icon-search"
-                  @keyup.enter="doSearch" style="width:220px" />
-      </el-form-item>
-      <el-form-item label="类型">
-        <el-select v-model="searchForm.type" placeholder="全部类型" clearable style="width:140px">
-          <el-option v-for="o in typeOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="标签">
-        <el-select v-model="searchForm.tags" multiple filterable remote reserve-keyword
-                   placeholder="输入关键词搜索标签..." :remote-method="onTagSearch" :loading="tagLoading"
-                   @visible-change="onTagDropVisible" style="width:280px">
-          <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="类别">
-        <el-select v-model="searchForm.categories" multiple filterable remote reserve-keyword
-                   placeholder="输入关键词搜索类别..." :remote-method="onCatSearch" :loading="catLoading"
-                   @visible-change="onCatDropVisible" style="width:280px">
-          <el-option v-for="c in catOptions" :key="c" :label="c" :value="c" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="排序">
-        <el-select v-model="searchForm.sortField" placeholder="默认（时间）" clearable style="width:140px">
-          <el-option v-for="o in sortOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="偏好">
-        <el-select v-model="searchForm.prefFilter" placeholder="默认" clearable style="width:120px">
-          <el-option v-for="o in prefOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" icon="el-icon-search" @click="doSearch">搜索</el-button>
-        <el-button icon="el-icon-refresh-left" @click="doReset">重置</el-button>
-      </el-form-item>
-    </el-form>
-  </section>
-
-  <!-- 漫画列表 -->
-  <section class="comic-section" v-loading="loading" element-loading-text="加载中...">
-    <transition-group name="card-anim" tag="div" class="comic-grid" v-if="comicList.length">
-      <div v-for="(comic, idx) in comicList" :key="comic.id" class="comic-card"
-           :style="{ animationDelay: idx * 0.035 + 's' }" @click="openChapters(comic)">
-        <!-- 封面 -->
-        <div class="comic-cover">
-          <div class="cover-fallback">
-            <i class="el-icon-picture-outline"></i>
-            <span>{{ comic.title ? comic.title.charAt(0) : '?' }}</span>
-          </div>
-          <img v-if="getCoverUrl(comic)" :src="getCoverUrl(comic)" :alt="comic.title"
-               loading="lazy" @error="$event.target.style.display='none'" />
-          <div class="cover-badges">
-            <span class="badge badge-type" :class="comic.type === '漫画' ? 'type-comic' : 'type-coser'">{{ comic.type }}</span>
-            <span class="badge badge-pages"><i class="el-icon-document"></i> {{ comic.pages_count }}P</span>
-          </div>
-          <div v-if="comic.favorited" style="position:absolute;bottom:8px;right:8px;z-index:2;font-size:18px;color:#e74c3c;text-shadow:0 1px 4px rgba(0,0,0,.6)">&#10084;</div>
-        </div>
-        <!-- 信息 -->
-        <div class="comic-info">
-          <h3 class="comic-title" :title="comic.title">{{ comic.title }}</h3>
-          <div class="comic-meta">
-            <span v-if="comic.author" class="meta-item"><i class="el-icon-user"></i>{{ comic.author }}</span>
-            <span v-if="comic.chinese_team" class="meta-item"><i class="el-icon-s-custom"></i>{{ comic.chinese_team }}</span>
-          </div>
-          <div class="comic-tags" v-if="comic.tags && comic.tags.length">
-            <el-tag v-for="tag in comic.tags.slice(0,4)" :key="'t-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
-            <el-tag v-if="comic.tags.length > 4" size="small" type="info" effect="dark">+{{ comic.tags.length - 4 }}</el-tag>
-          </div>
-          <div class="comic-cats" v-if="comic.categories && comic.categories.length">
-            <el-tag v-for="cat in comic.categories.slice(0,3)" :key="'c-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
-            <el-tag v-if="comic.categories.length > 3" size="small" effect="plain" type="info">+{{ comic.categories.length - 3 }}</el-tag>
-          </div>
-        </div>
-      </div>
-    </transition-group>
-    <el-empty v-if="!loading && !comicList.length" description="暂无作品数据" />
-  </section>
-
-  <!-- 分页 -->
-  <footer class="pagination-bar" v-if="total > 0">
-    <div class="pagination-inner">
-      <el-tooltip content="首页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(1)">&laquo;</el-button>
-      </el-tooltip>
-      <el-tooltip content="上一页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(currentPage-1)">&lsaquo;</el-button>
-      </el-tooltip>
-      <div class="pg-jump">
-        <el-input-number v-model="pageInput" :min="1" :max="totalPages" size="small" :controls="false" readonly @change="onPageJump" />
-        <span class="pg-slash">/</span>
-        <span class="pg-total">{{ totalPages }}</span>
-      </div>
-      <el-tooltip content="下一页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(currentPage+1)">&rsaquo;</el-button>
-      </el-tooltip>
-      <el-tooltip content="最后一页" placement="top" :show-after="500">
-        <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(totalPages)">&raquo;</el-button>
-      </el-tooltip>
+  <!-- ========== 顶部 Tab（桌面端） ========== -->
+  <nav class="desktop-tabs">
+    <div class="tab-item" :class="{ active: activeTab === 'recommend' }" @click="switchTab('recommend')">
+      <i class="el-icon-star-off"></i> 推荐
     </div>
-  </footer>
+    <div class="tab-item" :class="{ active: activeTab === 'search' }" @click="switchTab('search')">
+      <i class="el-icon-search"></i> 搜索
+    </div>
+    <div class="tab-item" :class="{ active: activeTab === 'profile' }" @click="switchTab('profile')">
+      <i class="el-icon-user"></i> 我的
+    </div>
+  </nav>
 
-  <!-- 漫画详情 & 章节弹窗 -->
-  <el-dialog v-model="chapterDlg" :fullscreen="isMobile" :width="isMobile ? '100%' : '720px'" :top="isMobile ? '0' : '6vh'" custom-class="comic-detail-dlg" :show-close="false">
-    <!-- 左上角关闭按钮 -->
+  <!-- ========== 主内容区 ========== -->
+  <main class="main-content">
+
+    <!-- 推荐 Tab -->
+    <section v-show="activeTab === 'recommend'" class="tab-panel">
+      <div class="section-toolbar">
+        <span class="section-label">为你随机推荐</span>
+        <el-button size="small" icon="el-icon-refresh" @click="loadRecommend">换一批</el-button>
+      </div>
+      <div v-loading="recommendLoading" element-loading-text="加载中..." class="comic-grid-wrap">
+        <div class="comic-grid" v-if="recommendList.length">
+          <div v-for="(comic, idx) in recommendList" :key="comic.id" class="comic-card"
+               :style="{ animationDelay: idx * 0.035 + 's' }" @click="openChapters(comic)">
+            <div class="comic-cover">
+              <div class="cover-fallback">
+                <i class="el-icon-picture-outline"></i>
+                <span>{{ comic.title ? comic.title.charAt(0) : '?' }}</span>
+              </div>
+              <img v-if="getCoverUrl(comic)" :src="getCoverUrl(comic)" :alt="comic.title"
+                   loading="lazy" @error="$event.target.style.display='none'" />
+              <div class="cover-badges">
+                <span class="badge badge-type" :class="comic.type === '漫画' ? 'type-comic' : 'type-coser'">{{ comic.type }}</span>
+                <span class="badge badge-pages"><i class="el-icon-document"></i> {{ comic.pages_count }}P</span>
+              </div>
+              <div v-if="comic.favorited" class="fav-heart">&#10084;</div>
+            </div>
+            <div class="comic-info">
+              <h3 class="comic-title" :title="comic.title">{{ comic.title }}</h3>
+              <div class="comic-meta">
+                <span v-if="comic.author" class="meta-item"><i class="el-icon-user"></i>{{ comic.author }}</span>
+                <span v-if="comic.chinese_team" class="meta-item"><i class="el-icon-s-custom"></i>{{ comic.chinese_team }}</span>
+              </div>
+              <div class="comic-tags" v-if="comic.tags && comic.tags.length">
+                <el-tag v-for="tag in comic.tags.slice(0,3)" :key="'t-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="!recommendLoading && !recommendList.length" description="暂无推荐" />
+      </div>
+    </section>
+
+    <!-- 搜索 Tab -->
+    <section v-show="activeTab === 'search'" class="tab-panel">
+      <!-- 搜索栏 -->
+      <div class="search-panel">
+        <el-form :inline="true" :model="searchForm" class="search-form" @submit.prevent="doSearch">
+          <el-form-item label="标题">
+            <el-input v-model="searchForm.title" placeholder="输入漫画标题..." clearable prefix-icon="el-icon-search"
+                      @keyup.enter="doSearch" style="width:220px" />
+          </el-form-item>
+          <el-form-item label="类型">
+            <el-select v-model="searchForm.type" placeholder="全部类型" clearable style="width:140px">
+              <el-option v-for="o in typeOptions" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="标签">
+            <el-select v-model="searchForm.tags" multiple filterable remote reserve-keyword
+                       placeholder="搜索标签..." :remote-method="onTagSearch" :loading="tagLoading"
+                       @visible-change="onTagDropVisible" style="width:240px">
+              <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="类别">
+            <el-select v-model="searchForm.categories" multiple filterable remote reserve-keyword
+                       placeholder="搜索类别..." :remote-method="onCatSearch" :loading="catLoading"
+                       @visible-change="onCatDropVisible" style="width:240px">
+              <el-option v-for="c in catOptions" :key="c" :label="c" :value="c" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="排序">
+            <el-select v-model="searchForm.sortField" placeholder="默认（时间）" clearable style="width:140px">
+              <el-option v-for="o in sortOptions" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="偏好">
+            <el-select v-model="searchForm.prefFilter" placeholder="默认" clearable style="width:120px">
+              <el-option v-for="o in prefOptions" :key="o.value" :label="o.label" :value="o.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="el-icon-search" @click="doSearch">搜索</el-button>
+            <el-button icon="el-icon-refresh-left" @click="doReset">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- 搜索结果列表 -->
+      <div v-loading="loading" element-loading-text="加载中..." class="comic-grid-wrap">
+        <div class="comic-grid" v-if="comicList.length">
+          <div v-for="(comic, idx) in comicList" :key="comic.id" class="comic-card"
+               :style="{ animationDelay: idx * 0.035 + 's' }" @click="openChapters(comic)">
+            <div class="comic-cover">
+              <div class="cover-fallback">
+                <i class="el-icon-picture-outline"></i>
+                <span>{{ comic.title ? comic.title.charAt(0) : '?' }}</span>
+              </div>
+              <img v-if="getCoverUrl(comic)" :src="getCoverUrl(comic)" :alt="comic.title"
+                   loading="lazy" @error="$event.target.style.display='none'" />
+              <div class="cover-badges">
+                <span class="badge badge-type" :class="comic.type === '漫画' ? 'type-comic' : 'type-coser'">{{ comic.type }}</span>
+                <span class="badge badge-pages"><i class="el-icon-document"></i> {{ comic.pages_count }}P</span>
+              </div>
+              <div v-if="comic.favorited" class="fav-heart">&#10084;</div>
+            </div>
+            <div class="comic-info">
+              <h3 class="comic-title" :title="comic.title">{{ comic.title }}</h3>
+              <div class="comic-meta">
+                <span v-if="comic.author" class="meta-item"><i class="el-icon-user"></i>{{ comic.author }}</span>
+                <span v-if="comic.chinese_team" class="meta-item"><i class="el-icon-s-custom"></i>{{ comic.chinese_team }}</span>
+              </div>
+              <div class="comic-tags" v-if="comic.tags && comic.tags.length">
+                <el-tag v-for="tag in comic.tags.slice(0,4)" :key="'t-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
+                <el-tag v-if="comic.tags.length > 4" size="small" type="info" effect="dark">+{{ comic.tags.length - 4 }}</el-tag>
+              </div>
+              <div class="comic-cats" v-if="comic.categories && comic.categories.length">
+                <el-tag v-for="cat in comic.categories.slice(0,3)" :key="'c-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="!loading && !comicList.length" description="暂无作品数据" />
+      </div>
+
+      <!-- 分页 -->
+      <footer class="pagination-bar" v-if="total > 0">
+        <div class="pagination-inner">
+          <el-tooltip content="首页" placement="top" :show-after="500">
+            <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(1)">&laquo;</el-button>
+          </el-tooltip>
+          <el-tooltip content="上一页" placement="top" :show-after="500">
+            <el-button class="pg-btn" size="small" :disabled="currentPage<=1" @click="goPage(currentPage-1)">&lsaquo;</el-button>
+          </el-tooltip>
+          <div class="pg-jump">
+            <el-input-number v-model="pageInput" :min="1" :max="totalPages" size="small" :controls="false" readonly @change="onPageJump" />
+            <span class="pg-slash">/</span>
+            <span class="pg-total">{{ totalPages }}</span>
+          </div>
+          <el-tooltip content="下一页" placement="top" :show-after="500">
+            <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(currentPage+1)">&rsaquo;</el-button>
+          </el-tooltip>
+          <el-tooltip content="最后一页" placement="top" :show-after="500">
+            <el-button class="pg-btn" size="small" :disabled="currentPage>=totalPages" @click="goPage(totalPages)">&raquo;</el-button>
+          </el-tooltip>
+        </div>
+      </footer>
+    </section>
+
+    <!-- 我的 Tab -->
+    <section v-show="activeTab === 'profile'" class="tab-panel">
+      <div class="section-toolbar">
+        <span class="section-label">我的收藏</span>
+        <el-button size="small" icon="el-icon-refresh" @click="loadFavorites">刷新</el-button>
+      </div>
+      <div v-loading="favoritesLoading" element-loading-text="加载中..." class="comic-grid-wrap">
+        <div class="comic-grid" v-if="favoritesList.length">
+          <div v-for="(comic, idx) in favoritesList" :key="comic.id" class="comic-card"
+               :style="{ animationDelay: idx * 0.035 + 's' }" @click="openChapters(comic)">
+            <div class="comic-cover">
+              <div class="cover-fallback">
+                <i class="el-icon-picture-outline"></i>
+                <span>{{ comic.title ? comic.title.charAt(0) : '?' }}</span>
+              </div>
+              <img v-if="getCoverUrl(comic)" :src="getCoverUrl(comic)" :alt="comic.title"
+                   loading="lazy" @error="$event.target.style.display='none'" />
+              <div class="cover-badges">
+                <span class="badge badge-type" :class="comic.type === '漫画' ? 'type-comic' : 'type-coser'">{{ comic.type }}</span>
+                <span class="badge badge-pages"><i class="el-icon-document"></i> {{ comic.pages_count }}P</span>
+              </div>
+              <div class="fav-heart">&#10084;</div>
+            </div>
+            <div class="comic-info">
+              <h3 class="comic-title" :title="comic.title">{{ comic.title }}</h3>
+              <div class="comic-meta">
+                <span v-if="comic.author" class="meta-item"><i class="el-icon-user"></i>{{ comic.author }}</span>
+                <span v-if="comic.chinese_team" class="meta-item"><i class="el-icon-s-custom"></i>{{ comic.chinese_team }}</span>
+              </div>
+              <div class="comic-tags" v-if="comic.tags && comic.tags.length">
+                <el-tag v-for="tag in comic.tags.slice(0,4)" :key="'t-'+tag" size="small" effect="dark" :type="tagColor(tag)">{{ tag }}</el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="!favoritesLoading && !favoritesList.length" description="暂无收藏" />
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========== 底部导航栏（移动端） ========== -->
+  <nav class="mobile-tabs">
+    <div class="mobile-tab-item" :class="{ active: activeTab === 'recommend' }" @click="switchTab('recommend')">
+      <i class="el-icon-star-off"></i>
+      <span>推荐</span>
+    </div>
+    <div class="mobile-tab-item" :class="{ active: activeTab === 'search' }" @click="switchTab('search')">
+      <i class="el-icon-search"></i>
+      <span>搜索</span>
+    </div>
+    <div class="mobile-tab-item" :class="{ active: activeTab === 'profile' }" @click="switchTab('profile')">
+      <i class="el-icon-user"></i>
+      <span>我的</span>
+    </div>
+  </nav>
+
+  <!-- ========== 漫画详情弹窗（z-index 高于底部导航） ========== -->
+  <el-dialog v-model="chapterDlg" :fullscreen="isMobile" :width="isMobile ? '100%' : '720px'" :top="isMobile ? '0' : '6vh'" custom-class="comic-detail-dlg" :show-close="false" :z-index="2000">
     <button class="detail-close-btn" @click="chapterDlg = false">&times;</button>
     <div v-if="chapterComic" class="comic-detail">
-      <!-- 头部：封面 + 基本信息 -->
       <div class="detail-header">
         <div class="detail-cover">
           <img v-if="getCoverUrl(chapterComic)" :src="getCoverUrl(chapterComic)" :alt="chapterComic.title" />
-          <div v-else class="detail-cover-fallback">
-            <i class="el-icon-picture-outline"></i>
-          </div>
+          <div v-else class="detail-cover-fallback"><i class="el-icon-picture-outline"></i></div>
         </div>
         <div class="detail-info">
           <h2 class="detail-title">{{ chapterComic.title }}</h2>
@@ -154,25 +262,20 @@
             <span class="detail-label">类别</span>
             <el-tag v-for="cat in chapterComic.categories" :key="'dc-'+cat" size="small" effect="plain" type="info">{{ cat }}</el-tag>
           </div>
-          <!-- 描述 -->
           <div class="detail-desc" v-if="chapterComic.description">
             <span class="detail-label">简介</span>
             <p class="detail-desc-text">{{ chapterComic.description }}</p>
           </div>
-          <!-- 收藏 / 厌恶按钮 -->
           <div style="display:flex;gap:10px;margin-top:8px">
-            <el-button :type="chapterComic.favorited ? 'danger' : 'default'" size="small"
-                       @click="toggleFavorite(chapterComic)">
+            <el-button :type="chapterComic.favorited ? 'danger' : 'default'" size="small" @click="toggleFavorite(chapterComic)">
               {{ chapterComic.favorited ? '&#10084; 已收藏' : '&#9825; 收藏' }}
             </el-button>
-            <el-button :type="chapterComic.disliked ? 'warning' : 'default'" size="small"
-                       @click="toggleDislike(chapterComic)">
+            <el-button :type="chapterComic.disliked ? 'warning' : 'default'" size="small" @click="toggleDislike(chapterComic)">
               {{ chapterComic.disliked ? '&#128078; 已厌恶' : '&#128078; 厌恶' }}
             </el-button>
           </div>
         </div>
       </div>
-      <!-- 章节选择 -->
       <el-divider></el-divider>
       <h4 style="margin-bottom:10px;color:var(--text-muted)">选择章节</h4>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -186,21 +289,9 @@
     </div>
   </el-dialog>
 
-  <!-- 图片查看器 -->
-  <el-dialog v-model="imageViewerVisible" width="90%" top="3vh" custom-class="image-viewer-dlg">
-    <div style="text-align:center;position:relative">
-      <img :src="chapterImages[currentImageIndex]" style="max-width:100%;max-height:80vh;border-radius:4px" />
-      <div style="margin-top:8px;color:var(--text-muted);font-size:13px">{{ currentImageIndex + 1 }} / {{ chapterImages.length }}</div>
-      <el-button v-if="currentImageIndex > 0" icon="el-icon-arrow-left" circle size="small"
-                 style="position:absolute;left:0;top:50%;transform:translateY(-50%)" @click="prevImage"></el-button>
-      <el-button v-if="currentImageIndex < chapterImages.length - 1" icon="el-icon-arrow-right" circle size="small"
-                 style="position:absolute;right:0;top:50%;transform:translateY(-50%)" @click="nextImage"></el-button>
-    </div>
-  </el-dialog>
-
-  <!-- 全屏阅读器 -->
+  <!-- 全屏阅读器（最高 z-index） -->
   <transition name="reader-fade">
-    <div v-if="readerVisible" class="reader-overlay">
+    <div v-if="readerVisible" class="reader-overlay" style="z-index:3000">
       <button class="reader-close" @click="closeReader" title="关闭 (Esc)">&times;</button>
       <div class="reader-scroll" @scroll="onReaderScroll" ref="readerScroll">
         <img v-for="(src, i) in readerImages" :key="i" :src="src" loading="lazy" class="reader-img" />
@@ -208,9 +299,6 @@
       <div class="reader-page-indicator">{{ readerCurrentPage }} / {{ readerImages.length }}</div>
     </div>
   </transition>
-
-  <!-- 返回按钮 -->
-  <a href="/home" class="back-fab">← 首页</a>
 
 </div>
 
