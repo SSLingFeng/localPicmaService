@@ -4,11 +4,11 @@
 
 localPicmaService 是一个基于 **Spring Boot 4 + Java 21 + PostgreSQL** 的本地多功能服务端，主要用途：
 
-- **漫画资源管理**：漫画/Coser 资源的浏览、搜索、章节阅读
+- **漫画资源管理**：漫画/Coser 资源的浏览、搜索、章节阅读、收藏/厌恶、推荐
 - **个人网站首页**：游戏日志、摄影展示、生活碎片、工作轨迹四大模块
 - **后台管理**：用户、角色、菜单、战队管理
 - **文件管理**：RustFS 对象存储 + Valkey 缓存
-- **工具测试**：RustFS 文件上传/下载、Valkey 键值操作
+- **工具模块**：SQLite 数据导入、章节压缩、漫画去重
 
 ---
 
@@ -16,14 +16,16 @@ localPicmaService 是一个基于 **Spring Boot 4 + Java 21 + PostgreSQL** 的�
 
 | 维度 | 技术 |
 |------|------|
-| 框架 | Spring Boot 4.0.1 (Jakarta EE) |
+| 框架 | Spring Boot 4.1.0 (Jakarta EE) |
 | Java | 21 |
 | 数据库 | PostgreSQL (HikariCP 连接池) |
-| 缓存 | Valkey / Redis (spring-data-redis) |
+| 缓存 | Valkey / Redis (spring-data-redis) + Caffeine (JVM 本地缓存) |
 | 对象存储 | RustFS (S3 协议兼容, AWS SDK v2) |
 | 安全 | Spring Security + JWT (Hutool JWT) |
 | 密码加密 | BCrypt |
 | 工具库 | Hutool 5.8.32, Lombok |
+| 图片处理 | WebP ImageIO (webp-imageio 0.1.6) |
+| SQLite | SQLite JDBC 3.45.3.0（用于导入 .db 文件） |
 | 实时通信 | WebSocket + SSE |
 | 前端框架 | Vue 3 + Element Plus 2.14.4 |
 | 前端构建 | 无构建工具，原生 HTML/CSS/JS + CDN/本地 lib |
@@ -59,13 +61,17 @@ src/main/java/com/example/localPicmaService/
 │   ├── auth/controller/             # 登录、注册、用户信息
 │   ├── admin/controller/            # 后台管理（角色、菜单、用户）
 │   ├── squad/controller/            # 战队管理
-│   ├── home/                        # 首页数据 + 首页内容管理
-│   ├── cartoon/controller/          # 漫画管理
+│   ├── home/                        # 首页数据 + 首页内容管理 + WebP图片接口
+│   ├── cartoon/controller/          # 漫画模块（用户端 + 管理端）
+│   │   ├── CartoonController.java   # 用户端：列表/推荐/收藏/详情/章节图片
+│   │   └── MangaAdminController.java # 管理端：增删改查/去重
+│   ├── comic/controller/            # SQLite 数据导入
+│   │   └── SqliteImportController.java
 │   ├── rustfs/controller/           # RustFS 文件管理
 │   ├── valkey/controller/           # Valkey 键值管理
 │   ├── upload/                      # 统一文件上传（支持分片）
 │   ├── proxy/                       # 文件代理（公开/受保护）
-│   ├── login/                       # 页面路由
+│   ├── login/                       # 页面路由（LoginRouter.java）
 │   └── ResourceController.java      # 静态资源服务
 ├── api/                             # 纯 API（不被 HTML 页面使用）
 │   ├── comic/                       # PicACG 漫画源客户端
@@ -80,8 +86,9 @@ src/main/java/com/example/localPicmaService/
     ├── RustFs/                      # RustFS 文件管理工具
     │   ├── RustFsConfig.java        # S3 客户端配置
     │   └── RustFsUtil.java          # 上传/下载/删除
-    └── Valkey/                      # Valkey 键值工具
-        └── ValkeyUtil.java          # get/set/del 等操作
+    ├── Valkey/                      # Valkey 键值工具
+    │   └── ValkeyUtil.java          # get/set/del/bytes 等操作
+    └── MangaZipController.java      # 漫画章节压缩工具
 
 src/main/resources/
 ├── application.yml                  # Spring Boot 配置
@@ -94,11 +101,18 @@ src/main/resources/
     │   ├── login/                   # 登录页
     │   ├── register/                # 注册页
     │   ├── index/                   # 入口页
-    │   ├── HomePage/                # 个人网站首页
+    │   ├── HomePage/                # 个人网站首页（游戏/摄影/生活/工作）
     │   ├── admin/                   # 后台管理页
+    │   │   ├── admin.html           # 用户管理
+    │   │   └── manga/               # 漫画后台管理（含导入/压缩/去重）
+    │   │       ├── main.html
+    │   │       └── app.js
     │   ├── squad/                   # 战队管理页
     │   ├── home/                    # 首页内容管理页
-    │   ├── router/private/cartoon/  # 漫画管理页
+    │   ├── router/private/cartoon/  # 漫画用户页（推荐/搜索/我的）
+    │   │   ├── main.html
+    │   │   ├── app.js
+    │   │   └── style.css
     │   └── test/                    # 工具测试页（RustFS + Valkey）
     └── error/
         └── error.html               # 通用错误页（403/404/500 等）
@@ -118,11 +132,56 @@ src/main/resources/
 | 用户信息 | `/page/login/api/user/` | `UserProfileController` |
 | 后台管理 | `/page/admin/api/` | `AdminController` |
 | 战队管理 | `/page/squad/api/admin/` | `SquadController` |
-| 漫画管理 | `/page/cartoon/api/` | `CartoonController` |
+| 漫画用户端 | `/page/cartoon/api/` | `CartoonController` |
+| 漫画管理端 | `/page/cartoon/admin/api/` | `MangaAdminController` |
+| SQLite 导入 | `/page/comic/import/api/` | `SqliteImportController` |
 | RustFS 文件 | `/page/rustfs/api/` | `RustFsController` |
 | Valkey 键值 | `/page/valkey/api/` | `ValkeyController` |
 | 首页数据 | `/home/api/` | `HomePageController` |
 | 首页管理 | `/home/admin/api/` | `HomeAdminController` |
+
+### 漫画用户端 API（CartoonController）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/page/cartoon/api/list` | 搜索漫画列表（支持偏好过滤） |
+| `GET` | `/page/cartoon/api/recommend` | 随机推荐 20 部（排除收藏和厌恶） |
+| `GET` | `/page/cartoon/api/favorites` | 当前用户收藏列表 |
+| `GET` | `/page/cartoon/api/detail?id=` | 漫画详情（含章节列表） |
+| `POST` | `/page/cartoon/api/toggleFavorite` | 切换收藏（基于 picg_id） |
+| `POST` | `/page/cartoon/api/toggleDislike` | 切换厌恶（基于 picg_id） |
+| `POST` | `/page/cartoon/api/searchTags` | 标签搜索 |
+| `POST` | `/page/cartoon/api/searchCategories` | 类别搜索 |
+| `POST` | `/page/cartoon/api/chapterImages` | 获取章节图片列表 |
+| `GET` | `/page/cartoon/api/cover?key=` | 封面图片 |
+| `GET` | `/page/cartoon/api/pageImage?key=` | 章节图片（Caffeine 缓存 + zip 解压） |
+
+### 漫画管理端 API（MangaAdminController）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/page/cartoon/admin/api/list` | 漫画列表（含已删除） |
+| `POST` | `/page/cartoon/admin/api/softDelete` | 软删除 |
+| `POST` | `/page/cartoon/admin/api/restore` | 恢复删除 |
+| `POST` | `/page/cartoon/admin/api/upload-image` | 上传图片 |
+| `POST` | `/page/cartoon/admin/api/searchTags` | 标签搜索 |
+| `POST` | `/page/cartoon/admin/api/searchCategories` | 类别搜索 |
+| `GET` | `/page/cartoon/admin/api/dedup/scan` | 扫描重复 picg_id |
+| `POST` | `/page/cartoon/admin/api/dedup/execute` | 执行去重 |
+| `GET` | `/page/cartoon/admin/api/cover` | 封面图片 |
+| `GET` | `/page/cartoon/admin/api/pageImage` | 章节图片 |
+| `POST` | `/page/cartoon/admin/api/chapterImages` | 章节图片列表 |
+
+### 工具 API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/tool/manga-zip/status` | 章节压缩任务状态 |
+| `POST` | `/tool/manga-zip/start` | 启动压缩任务 |
+| `POST` | `/tool/manga-zip/stop` | 停止压缩任务 |
+| `GET` | `/page/comic/import/api/status` | SQLite 导入任务状态 |
+| `POST` | `/page/comic/import/api/upload` | 上传 .db 文件并导入 |
+| `POST` | `/page/comic/import/api/stop` | 停止导入任务 |
 
 ### 统一上传 API
 
@@ -133,16 +192,23 @@ src/main/resources/
 | `POST /api/upload/chunk/upload` | 上传单个分片 |
 | `POST /api/upload/chunk/complete` | 合并分片完成上传 |
 
-### 文件代理 API
+### 公开 API（免登录）
+
+在 `SecurityConfig.java` 的 `permitAll()` 中配置：
 
 | 路径 | 说明 |
 |------|------|
-| `GET /api/public/file?key=&id=` | 公开文件（免认证，封面/图片等） |
-| `GET /api/protected/file?key=&id=` | 受保护文件（需认证） |
-
-### 公开 API（免登录）
-
-在 `SecurityConfig.java` 的 `permitAll()` 中配置。
+| `/` `/login` `/register` `/home` | 页面路由 |
+| `/home/api/**` | 首页数据接口 |
+| `/public/res/**` | 静态资源 |
+| `/page/login/api/login` | 登录接口 |
+| `/page/login/api/check-token` | Token 验证 |
+| `/page/login/api/register` | 注册接口 |
+| `/page/cartoon/api/cover` | 漫画封面 |
+| `/page/cartoon/api/pageImage` | 章节图片 |
+| `/page/rustfs/api/download` | RustFS 下载 |
+| `/api/public/file` | 公开文件代理 |
+| `/api/public/home-image` | 首页 WebP 图片 |
 
 ---
 
@@ -150,12 +216,13 @@ src/main/resources/
 
 | 路径 | 页面 | 说明 |
 |------|------|------|
-| `/` `/home` | homePage.html | 个人网站首页 |
-| `/login` | login.html | 登录页 |
-| `/register` | register.html | 注册页 |
-| `/admin` | admin.html | 后台管理 |
-| `/squad` | squad.html | 战队管理 |
-| `/cartoon` | cartoon/main.html | 漫画管理 |
+| `/` `/home` | HomePage/homePage.html | 个人网站首页 |
+| `/login` | login/login.html | 登录页 |
+| `/register` | register/register.html | 注册页 |
+| `/admin` | admin/admin.html | 后台管理 |
+| `/squad` | squad/squad.html | 战队管理 |
+| `/cartoon` | router/private/cartoon/main.html | 漫画用户页（推荐/搜索/我的） |
+| `/admin/manga` | admin/manga/main.html | 漫画后台管理（管理/导入/压缩/去重） |
 | `/test` | test/main.html | 工具测试 |
 | `/home/admin` | home/admin.html | 首页内容管理 |
 
@@ -198,20 +265,53 @@ ALTER TABLE public.{table_name} OWNER TO czw;
 
 ### 表清单
 
-| 表名 | 用途 |
-|------|------|
-| `web_user` | 用户表 |
-| `web_user_role` | 用户-角色关联 |
-| `sys_role` | 角色表 |
-| `sys_menu` | 菜单/页面表（支持树形结构） |
-| `sys_role_menu` | 角色-菜单关联 |
-| `manga_source` | 漫画/资源数据 |
-| `manga_user_preference` | 漫画用户偏好（收藏/厌恶），关联 `web_user.id` + `manga_source.id` |
-| `squad` | 战队表 |
-| `squad_member` | 战队成员表 |
-| `home_content` | 首页内容（JSONB data 字段） |
-| `home_module_config` | 首页模块显示配置 |
-| `rustfs_file` | RustFS 文件元信息 |
+| 表名 | 用途 | 说明 |
+|------|------|------|
+| `web_user` | 用户表 | |
+| `web_user_role` | 用户-角色关联 | |
+| `sys_role` | 角色表 | |
+| `sys_menu` | 菜单/页面表 | 支持树形结构 |
+| `sys_role_menu` | 角色-菜单关联 | |
+| `manga_source` | 漫画/资源数据 | 主表，picg_id 为外部平台 ID |
+| `manga_user_preference` | 漫画用户偏好 | 收藏/厌恶，通过 `picg_id` 关联 |
+| `squad` | 战队表 | |
+| `squad_member` | 战队成员表 | |
+| `home_content` | 首页内容 | 新增 title/content/order_num/date_time 列 |
+| `home_module_config` | 首页模块显示配置 | |
+| `rustfs_file` | RustFS 文件元信息 | |
+
+### home_content 表结构（更新）
+
+```sql
+-- 新增列（已存在则跳过）
+ALTER TABLE home_content ADD COLUMN IF NOT EXISTS title VARCHAR(50);
+ALTER TABLE home_content ADD COLUMN IF NOT EXISTS content TEXT;
+ALTER TABLE home_content ADD COLUMN IF NOT EXISTS order_num INTEGER DEFAULT 0;
+ALTER TABLE home_content ADD COLUMN IF NOT EXISTS date_time TIME;
+```
+
+- `data` 列（JSONB）仅存放图片 ID 数组：`[{"file_id": "xxx", "order_num": 0}]`
+- 图片通过 `/api/public/home-image?id={file_id}` 访问（WebP 格式）
+
+### manga_user_preference 表结构
+
+```sql
+CREATE TABLE public.manga_user_preference
+(
+    id           varchar(40)       not null primary key,
+    ver          integer default 0 not null,
+    create_date  timestamp,
+    update_date  timestamp,
+    creator_id   varchar(40),
+    creator_name varchar(50),
+    updator_id   varchar(40),
+    updator_name varchar(50),
+    del_flag     integer default 0,
+    user_id      varchar(40)       not null,   -- 关联 web_user.id
+    picg_id      varchar(40)       not null,   -- 关联 manga_source.picg_id
+    pref_type    smallint          not null    -- 1=收藏, -1=厌恶
+);
+```
 
 ---
 
@@ -232,9 +332,84 @@ ALTER TABLE public.{table_name} OWNER TO czw;
 
 ### 前端认证模块
 
-- `auth.js`：token 管理、自动登录、凭据加密存储
+- `auth.js`：token 管理、自动登录、凭据加密存储、`checkToken()` 不在网络错误时清除 cookie
 - `login-modal.js`：全局登录弹窗、用户徽章、导航菜单
 - `upload.js`：统一文件上传（带 token 认证）
+
+---
+
+## 漫画模块架构
+
+### 三 Tab 架构（用户端 `/cartoon`）
+
+| Tab | 说明 | 数据来源 |
+|-----|------|---------|
+| 推荐 | 随机推荐 20 部 | `GET /page/cartoon/api/recommend` |
+| 搜索 | 搜索+分页 | `POST /page/cartoon/api/list` |
+| 我的 | 收藏列表 | `GET /page/cartoon/api/favorites` |
+
+- 移动端底部导航栏（`z-index: 1000`）
+- 漫画详情弹窗（`z-index: 2000`）覆盖导航
+- 全屏阅读器（`z-index: 3000`）覆盖所有
+- 所有 Tab 点击漫画卡片统一调用 `openChapters()` → `GET /page/cartoon/api/detail?id=xxx`
+
+### 四 Tab 架构（管理端 `/admin/manga`）
+
+| Tab | 说明 |
+|-----|------|
+| 漫画管理 | 搜索、删除/恢复、详情查看 |
+| SQLite 导入 | 上传 .db 文件导入数据 |
+| 章节压缩 | 批量压缩章节为 zip |
+| 漫画去重 | 按 picg_id 去重 |
+
+### 收藏/厌恶系统
+
+- 通过 `manga_user_preference` 表存储，关联 `picg_id`（非 manga_source.id）
+- `pref_type = 1` 收藏，`pref_type = -1` 厌恶
+- 收藏和厌恶互斥：收藏时自动取消厌恶，反之亦然
+- 软删除（`del_flag`），可恢复
+
+### 图片缓存机制
+
+**Caffeine 本地缓存**（章节图片）：
+- 最大 4000 张
+- 动态 TTL：默认 1h，>300张或>300MB 的章节 30min，>600张或>600MB 的章节 15min
+- Valkey 存储元数据：`{key}:meta` = `{zipPath}|{entryName}|{imageCount}|{zipSizeBytes}`
+
+**Valkey 缓存**（封面路径）：
+- 键：`{漫画ID}cover` → 值：封面绝对路径，TTL 1h
+
+**图片请求流程**：
+1. 前端获取 key 数组
+2. 请求 `/page/cartoon/api/pageImage?key=xxx`
+3. 先查 Caffeine 缓存 → 命中直接返回
+4. 未命中 → 读取 Valkey 元数据 → 从 zip 解压或读文件 → 写入 Caffeine → 返回
+
+### 首页图片（WebP）
+
+- 接口：`GET /api/public/home-image?id={rustfs_file表ID}`
+- 免登录
+- 从 RustFS 下载 → 转 WebP（webp-imageio）→ 返回
+- 缓存 1 小时
+
+---
+
+## 首页内容管理
+
+### 数据结构变更
+
+`home_content` 表新增独立字段：`title`, `content`, `order_num`, `date_time`（TIME 类型）
+
+`data` 列（JSONB）仅存放图片数组：
+```json
+[{"file_id": "xxx", "order_num": 0}, {"file_id": "yyy", "order_num": 1}]
+```
+
+### 图片上传流程
+
+1. 上传图片 → RustFS 存储 → 返回 `rustfs_file` 表 ID
+2. 前端保存 ID 到 `data` 列的图片数组
+3. 前端显示时通过 `/api/public/home-image?id={file_id}` 获取 WebP 图片
 
 ---
 
@@ -279,19 +454,6 @@ spring:
 
 ---
 
-## 漫画模块 — Valkey 缓存机制
-
-漫画图片通过 Valkey 缓存路径，避免每次请求查数据库：
-
-| 键格式 | 值 | TTL | 用途 |
-|--------|-----|-----|------|
-| `{漫画UUID}cover` | 封面绝对路径 | 1h | 列表封面 |
-| `{漫画UUID}img{文件名无后缀}` | 图片绝对路径 | 1h | 章节图片 |
-
-图片请求流程：前端获取 key 数组 → 拼接 `/page/cartoon/api/pageImage?key=xxx` → 后端从 Valkey 读路径 → 返回文件
-
----
-
 ## SqlUtil 占位符语法
 
 自研 JDBC 工具，使用自定义占位符语法：
@@ -308,11 +470,24 @@ SqlUtil.exec("UPDATE users SET name = {?varchar|n?} WHERE id = {?integer|id?}", 
 
 // JSONB 字段：用 varchar 传值 + SQL 层面 ::jsonb 转型
 SqlUtil.exec("INSERT INTO t (data) VALUES ({?varchar|d?}::jsonb)", Map.of("d", jsonString));
+
+// Timestamp 字段：用 varchar 传值 + SQL 层面 ::timestamp 转型
+SqlUtil.exec("INSERT INTO t (time) VALUES ({?varchar|t?}::timestamp)", Map.of("t", timeStr));
 ```
 
-占位符格式：`{?类型|参数名?}`，类型对应 `java.sql.Types` 常量名（varchar, integer, boolean, timestamp 等）。
+占位符格式：`{?类型|参数名?}`，类型对应 `java.sql.Types` 常量名。
 
-**注意**：`getSqlType()` 不支持 `jsonb` 类型，JSONB 字段需用 `varchar` 传值 + `::jsonb` SQL 转型。
+**类型转换规则**：
+
+| SQL 类型 | 占位符类型 | 备注 |
+|----------|-----------|------|
+| varchar/text | `{?varchar\|...?}` | |
+| integer | `{?integer\|...?}` | |
+| bigint | `{?bigint\|...?}` | |
+| boolean | `{?boolean\|...?}` | |
+| timestamp | `{?varchar\|...?}::timestamp` | varchar 传入 + SQL 转型 |
+| jsonb | `{?varchar\|...?}::jsonb` | varchar 传入 + SQL 转型 |
+| time | `{?time\|...?}` | |
 
 ---
 
@@ -321,6 +496,7 @@ SqlUtil.exec("INSERT INTO t (data) VALUES ({?varchar|d?}::jsonb)", Map.of("d", j
 ```
 {mediaRootPath}/{type映射}/{path}/{directory}/cover.jpg       → 封面
 {mediaRootPath}/{type映射}/{path}/{directory}/{章节index}/1.jpg  → 章节图片
+{mediaRootPath}/{type映射}/{path}/{directory}/{章节index}.zip   → 压缩包
 ```
 
 - `type=漫画` → 目录名 `cartoon`
@@ -362,10 +538,23 @@ Windows 目录名末尾的 `.` 会被强制替换为 `_`，需根据 `path` 日�
 - 事件修饰符：`@submit.prevent`（不用 `.native`）
 - 尺寸：`size="small"`（不用 `size="mini"`）
 
+### 移动端适配规范
+
+- 使用 `isMobile` 响应式状态（`window.innerWidth <= 700`）
+- 监听 `resize` 事件更新状态
+- 底部导航栏使用 `position: fixed; bottom: 0`，`z-index: 1000`
+- 弹窗使用 `:fullscreen="isMobile"` 实现响应式
+- 弹窗 `z-index` 需高于底部导航（建议 2000+）
+- 阅读器 `z-index` 最高（建议 3000）
+- 弹窗/阅读器打开时隐藏浮动元素（用户徽章、导航菜单）
+
 ### Java 注意事项
 
 - Spring Boot 4 使用 **Jakarta EE**，包名是 `jakarta.servlet`，不是 `javax.servlet`
 - `Map.of()` 最多支持 10 对键值（20 个参数），超过时使用 `LinkedHashMap`
 - SQL 工具使用自定义占位符 `{?类型|参数名?}`，不是 `?` 占位符
 - JSONB 字段操作：用 `varchar` 传值 + `::jsonb` SQL 转型
+- Timestamp 字段操作：用 `varchar` 传值 + `::timestamp` SQL 转型
 - JSON 解析使用 Hutool 的 `JSONObject` / `JSONArray`
+- SqlUtil 返回的 boolean 字段是 `int`（0/1），需要手动转换
+- SqlUtil 返回的 time 字段是 `java.util.Date`，需要格式化为字符串

@@ -187,7 +187,7 @@ public class CartoonController {
                 : ", NULL AS my_pref";
         if (currentUser != null) queryParams.put("favu", currentUser);
 
-        String dataSql = "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, "
+        String dataSql = "SELECT ms.id, ms.type, ms.picg_id, ms.title, ms.author, ms.chinese_team, "
                 + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory"
                 + favSelect
                 + " FROM manga_source ms WHERE " + where + " " + orderBy + " LIMIT " + size + " OFFSET " + from;
@@ -235,7 +235,7 @@ public class CartoonController {
                 : "";
 
         List<Map<String, Object>> rows = SqlUtil.query(
-                "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, "
+                "SELECT ms.id, ms.type, ms.picg_id, ms.title, ms.author, ms.chinese_team, "
                         + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory"
                         + " FROM manga_source ms"
                         + " WHERE ms.del_flag = 0" + excludeClause
@@ -256,7 +256,7 @@ public class CartoonController {
         params.put("uid", currentUser);
 
         List<Map<String, Object>> rows = SqlUtil.query(
-                "SELECT ms.id, ms.type, ms.title, ms.author, ms.chinese_team, "
+                "SELECT ms.id, ms.type, ms.picg_id, ms.title, ms.author, ms.chinese_team, "
                         + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory, 1 AS my_pref"
                         + " FROM manga_user_preference p"
                         + " JOIN manga_source ms ON ms.picg_id = p.picg_id AND ms.del_flag = 0"
@@ -304,10 +304,7 @@ public class CartoonController {
         if (currentUser != null) params.put("uid", currentUser);
 
         Map<String, Object> row = SqlUtil.row(
-                "SELECT ms.id, ms.type, ms.title, ms.subtitle, ms.author, ms.chinese_team, ms.description, "
-                        + "ms.tags, ms.categories, ms.pages_count, ms.time, ms.path, ms.directory, "
-                        + "ms.chapters, ms.likes, ms.comments, ms.creator, ms.size"
-                        + favSelect
+                "SELECT ms.*" + favSelect
                         + " FROM manga_source ms WHERE ms.id = {?varchar|id?} AND ms.del_flag = 0",
                 params);
 
