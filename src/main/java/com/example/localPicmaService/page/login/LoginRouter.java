@@ -57,4 +57,9 @@ public class LoginRouter {
     public ResponseEntity<byte[]> sqliteImport() {
         return ResourceController.serveFile("static/module/tool/sqlite-import.html");
     }
+
+    @GetMapping("/frp")
+    public ResponseEntity<byte[]> frp() {
+        return ResourceController.serveFile("static/module/frp/main.html");
+    }
 }

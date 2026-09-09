@@ -58,6 +58,7 @@ public class SystemConfig {
     private String logSizeType = "MB";
     private int logFileNum = 5;
     private String mediaRootPath = "";
+    private String frpBasePath = "";  // FRP 配置文件主路径
 
     // ======================== RustFS 配置 ========================
     private String rustfsEndpoint = "";
@@ -89,6 +90,7 @@ public class SystemConfig {
         System.out.println(">>>   logSize       = " + logSize + logSizeType);
         System.out.println(">>>   logFileNum    = " + logFileNum);
         System.out.println(">>>   mediaRootPath = " + mediaRootPath);
+        System.out.println(">>>   frpBasePath   = " + frpBasePath);
         System.out.println(">>>   rustfsEndpoint = " + rustfsEndpoint);
         System.out.println(">>>   rustfsBucket   = " + rustfsBucket);
     }
@@ -153,6 +155,12 @@ public class SystemConfig {
                 "媒体资源根目录（漫画/coser 等文件存放路径）",
                 mediaRootPath));
 
+        config.set("sys.frpBasePath", buildEntry(
+                "FRP config file base path",
+                "String",
+                "FRP 配置文件主路径",
+                frpBasePath));
+
         // RustFS 配置
         config.set("sys.rustfsEndpoint", buildEntry(
                 "RustFS / S3 endpoint URL, e.g. http://192.168.1.10:9000",
@@ -207,6 +215,7 @@ public class SystemConfig {
         logSizeType = getStr(config, "sys.logSizeType", logSizeType);
         logFileNum = getInt(config, "sys.logFileNum", logFileNum);
         mediaRootPath = getStr(config, "sys.mediaRootPath", mediaRootPath);
+        frpBasePath = getStr(config, "sys.frpBasePath", frpBasePath);
         rustfsEndpoint = getStr(config, "sys.rustfsEndpoint", rustfsEndpoint);
         rustfsAccessKey = getStr(config, "sys.rustfsAccessKey", rustfsAccessKey);
         rustfsSecretKey = getStr(config, "sys.rustfsSecretKey", rustfsSecretKey);
@@ -308,6 +317,14 @@ public class SystemConfig {
 
     public void setMediaRootPath(String mediaRootPath) {
         this.mediaRootPath = mediaRootPath;
+    }
+
+    public String getFrpBasePath() {
+        return frpBasePath;
+    }
+
+    public void setFrpBasePath(String frpBasePath) {
+        this.frpBasePath = frpBasePath;
     }
 
     // ======================== RustFS Getter / Setter ========================

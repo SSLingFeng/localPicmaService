@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FRP 控制端</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
+  <style>
+    body { background: #090912; color: #e8e4dc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+    .page-header { text-align: center; padding: 30px 0 20px; }
+    .page-header h1 { font-family: 'Noto Serif SC', serif; font-size: 28px; color: #d4a853; margin: 0; }
+    .tabs { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
+    .tab-item { padding: 10px 28px; border-radius: 8px; background: #111122; border: 1px solid #252545; color: #6b6580; font-size: 14px; cursor: pointer; transition: all .2s; }
+    .tab-item:hover { border-color: #d4a853; color: #d4a853; }
+    .tab-item.active { background: #d4a853; border-color: #d4a853; color: #090912; font-weight: 600; }
+    .panel { background: #111122; border: 1px solid #252545; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .panel-header h3 { font-size: 16px; color: #e8e4dc; margin: 0; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .status-0 { background: #6b6580; }
+    .status-1 { background: #67c23a; }
+    .status-2 { background: #f56c6c; }
+    .el-table { --el-table-bg-color: #111122; --el-table-tr-bg-color: #111122; --el-table-header-bg-color: #171730; --el-table-border-color: #252545; --el-table-text-color: #e8e4dc; --el-table-header-text-color: #6b6580; --el-table-row-hover-bg-color: #1a1a30; }
+    .back-fab { position: fixed; bottom: 24px; right: 24px; display: flex; align-items: center; gap: 6px; padding: 10px 18px; background: #171730; border: 1px solid #252545; border-radius: 10px; color: #6b6580; text-decoration: none; font-size: 13px; }
+    .back-fab:hover { border-color: #d4a853; color: #d4a853; }
+    .config-preview { background: #090912; border: 1px solid #252545; border-radius: 4px; padding: 12px; font-family: monospace; font-size: 12px; color: #6b6580; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body>
+<div id="app" v-cloak class="wrap">
+
+  <header class="page-header">
+    <h1><i class="el-icon-connection"></i> FRP 控制端</h1>
+  </header>
+
+  <nav class="tabs">
+    <div class="tab-item" :class="{ active: activeTab === 'client' }" @click="activeTab = 'client'">
+      <i class="el-icon-monitor"></i> 客户端实例
+    </div>
+    <div class="tab-item" :class="{ active: activeTab === 'proxy' }" @click="activeTab = 'proxy'">
+      <i class="el-icon-sort"></i> 代理规则
+    </div>
+  </nav>
+
+  <!-- ==================== 客户端实例 Tab ==================== -->
+  <div v-show="activeTab === 'client'">
+    <div class="panel">
+      <div class="panel-header">
+        <h3>客户端实例列表</h3>
+        <el-button type="primary" size="small" @click="openClientDialog(null)">新增客户端</el-button>
+      </div>
+      <el-table :data="clients" stripe size="small" v-loading="clientLoading" empty-text="暂无客户端实例">
+        <el-table-column label="状态" width="70" align="center">
+          <template #default="{ row }">
+            <span class="status-dot" :class="'status-' + row.connect_status"></span>
+            {{ row.connect_status === 1 ? '正常' : row.connect_status === 2 ? '异常' : '未知' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="client_name" label="名称" min-width="120" />
+        <el-table-column label="服务端地址" min-width="150">
+          <template #default="{ row }">{{ row.server_addr }}:{{ row.server_port }}</template>
+        </el-table-column>
+        <el-table-column label="WebServer" width="120" align="center">
+          <template #default="{ row }">
+            <span v-if="row.has_web_server">{{ row.web_server_addr }}:{{ row.web_server_port }}</span>
+            <span v-else style="color:#6b6580">未开启</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="config_path" label="配置路径" min-width="120">
+          <template #default="{ row }">{{ row.config_path || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="最后心跳" width="150">
+          <template #default="{ row }">{{ formatTime(row.last_heartbeat) || '从未' }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="300" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="openClientDialog(row)">编辑</el-button>
+            <el-button size="small" type="warning" @click="generateConfig(row)">生成配置</el-button>
+            <el-button size="small" type="info" @click="reloadClient(row)">重载</el-button>
+            <el-button size="small" type="danger" @click="deleteClient(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+  </div>
+
+  <!-- ==================== 代理规则 Tab ==================== -->
+  <div v-show="activeTab === 'proxy'">
+    <div class="panel">
+      <div class="panel-header">
+        <h3>代理规则列表</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <el-select v-model="proxyFilter" placeholder="筛选客户端" clearable size="small" style="width:200px" @change="loadProxies">
+            <el-option v-for="c in clients" :key="c.id" :label="c.client_name" :value="c.id" />
+          </el-select>
+          <el-button type="primary" size="small" @click="openProxyDialog(null)">新增代理</el-button>
+        </div>
+      </div>
+      <el-table :data="filteredProxies" stripe size="small" v-loading="proxyLoading" empty-text="暂无代理规则">
+        <el-table-column prop="proxy_name" label="名称" min-width="120" />
+        <el-table-column label="客户端" min-width="120">
+          <template #default="{ row }">{{ row.client_name || '未知' }}</template>
+        </el-table-column>
+        <el-table-column label="类型" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="getTypeTag(row.proxy_type)">{{ row.proxy_type }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="本地地址" min-width="150">
+          <template #default="{ row }">{{ row.local_ip }}:{{ row.local_port }}</template>
+        </el-table-column>
+        <el-table-column label="远程端口" width="100" align="center">
+          <template #default="{ row }">{{ row.remote_port || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="密钥" width="100">
+          <template #default="{ row }">{{ row.secret_key || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="{ row }">
+            <el-switch v-model="row.enabled" @change="toggleProxy(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="openProxyDialog(row)">编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteProxy(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+  </div>
+
+  <!-- ==================== 客户端编辑弹窗 ==================== -->
+  <el-dialog :title="clientForm.id ? '编辑客户端' : '新增客户端'" v-model="clientDialogVisible" width="600px">
+    <el-form label-width="100px" size="small">
+      <el-form-item label="客户端名称">
+        <el-input v-model="clientForm.client_name" placeholder="如：公司电脑、家里NAS" />
+      </el-form-item>
+      <el-form-item label="客户端ID">
+        <el-input v-model="clientForm.client_id" placeholder="可选，frpc 客户端标识" />
+      </el-form-item>
+      <el-divider content-position="left">服务端连接</el-divider>
+      <el-form-item label="服务端地址">
+        <el-input v-model="clientForm.server_addr" placeholder="IP 或域名" />
+      </el-form-item>
+      <el-form-item label="服务端端口">
+        <el-input-number v-model="clientForm.server_port" :min="1" :max="65535" />
+      </el-form-item>
+      <el-form-item label="认证Token">
+        <el-input v-model="clientForm.auth_token" placeholder="服务端认证 Token" show-password />
+      </el-form-item>
+      <el-form-item label="登录失败退出">
+        <el-switch v-model="clientForm.login_fail_exit" />
+      </el-form-item>
+      <el-divider content-position="left">WebServer 管理</el-divider>
+      <el-form-item label="管理端口">
+        <el-input-number v-model="clientForm.web_server_port" :min="0" :max="65535" />
+        <div style="font-size:11px;color:#6b6580;margin-top:2px">0 表示未开启</div>
+      </el-form-item>
+      <el-form-item label="管理地址">
+        <el-input v-model="clientForm.web_server_addr" placeholder="127.0.0.1" />
+      </el-form-item>
+      <el-form-item label="用户名">
+        <el-input v-model="clientForm.web_server_user" placeholder="WebServer 用户名" />
+      </el-form-item>
+      <el-form-item label="密码">
+        <el-input v-model="clientForm.web_server_pass" placeholder="WebServer 密码" show-password />
+      </el-form-item>
+      <el-divider content-position="left">配置文件</el-divider>
+      <el-form-item label="配置路径">
+        <el-input v-model="clientForm.config_path" :placeholder="frpBasePath ? '相对于 ' + frpBasePath : '相对路径/文件名'" />
+        <div v-if="frpBasePath" style="font-size:11px;color:#6b6580;margin-top:2px">基础路径: {{ frpBasePath }}</div>
+      </el-form-item>
+      <el-form-item label="备注">
+        <el-input type="textarea" v-model="clientForm.remark" :rows="2" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="clientDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="clientSaving" @click="saveClient">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ==================== 代理编辑弹窗 ==================== -->
+  <el-dialog :title="proxyForm.id ? '编辑代理' : '新增代理'" v-model="proxyDialogVisible" width="550px">
+    <el-form label-width="90px" size="small">
+      <el-form-item label="所属客户端">
+        <el-select v-model="proxyForm.client_id" placeholder="选择客户端" style="width:100%">
+          <el-option v-for="c in clients" :key="c.id" :label="c.client_name + ' (' + c.server_addr + ')'" :value="c.id" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="代理名称">
+        <el-input v-model="proxyForm.proxy_name" placeholder="唯一名称，如 SSH、MC" />
+      </el-form-item>
+      <el-form-item label="类型">
+        <el-select v-model="proxyForm.proxy_type" style="width:100%">
+          <el-option label="TCP" value="TCP" />
+          <el-option label="UDP" value="UDP" />
+          <el-option label="STCP" value="STCP" />
+          <el-option label="XTCP" value="XTCP" />
+          <el-option label="HTTP" value="HTTP" />
+          <el-option label="HTTPS" value="HTTPS" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="本地IP">
+        <el-input v-model="proxyForm.local_ip" placeholder="127.0.0.1" />
+      </el-form-item>
+      <el-form-item label="本地端口">
+        <el-input-number v-model="proxyForm.local_port" :min="1" :max="65535" />
+      </el-form-item>
+      <el-form-item label="远程端口" v-if="!['STCP','XTCP'].includes(proxyForm.proxy_type)">
+        <el-input-number v-model="proxyForm.remote_port" :min="1" :max="65535" />
+      </el-form-item>
+      <el-form-item label="密钥" v-if="['STCP','XTCP'].includes(proxyForm.proxy_type)">
+        <el-input v-model="proxyForm.secret_key" placeholder="STCP/XTCP 密钥" />
+      </el-form-item>
+      <el-form-item label="备注">
+        <el-input type="textarea" v-model="proxyForm.remark" :rows="2" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="proxyDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="proxySaving" @click="saveProxy">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ==================== 配置预览弹窗 ==================== -->
+  <el-dialog title="生成的 FRP 配置" v-model="configDialogVisible" width="700px">
+    <div v-if="configResult">
+      <el-alert :title="configResult.message" :type="configResult.path ? 'success' : 'info'" :closable="false" style="margin-bottom:12px" />
+      <div class="config-preview">{{ configResult.config }}</div>
+    </div>
+    <template #footer>
+      <el-button @click="configDialogVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
+
+  <a href="/home" class="back-fab">&larr; 首页</a>
+</div>
+
+<script src="/public/res/module/auth.js"></script>
+<script src="/public/res/module/login-modal.js"></script>
+<script src="/public/res/lib/vue.global.prod.js"></script>
+<script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
+<script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
+<script>
+var ElMessage = ElementPlus.ElMessage;
+var ElMessageBox = ElementPlus.ElMessageBox;
+var BASE = '/page/frp/api';
+
+Vue.createApp({
+  data: function () {
+    return {
+      activeTab: 'client',
+
+      /* 客户端 */
+      clients: [],
+      clientLoading: false,
+      frpBasePath: '',
+      clientDialogVisible: false,
+      clientSaving: false,
+      clientForm: { id: null, client_id: '', client_name: '', server_addr: '', server_port: 7000, login_fail_exit: false, auth_token: '', web_server_addr: '127.0.0.1', web_server_port: 0, web_server_user: '', web_server_pass: '', config_path: '', remark: '' },
+
+      /* 代理规则 */
+      proxies: [],
+      proxyLoading: false,
+      proxyFilter: '',
+      proxyDialogVisible: false,
+      proxySaving: false,
+      proxyForm: { id: null, client_id: '', proxy_name: '', proxy_type: 'TCP', local_ip: '127.0.0.1', local_port: 22, remote_port: 6000, secret_key: '', remark: '' },
+
+      /* 配置预览 */
+      configDialogVisible: false,
+      configResult: null
+    };
+  },
+  computed: {
+    filteredProxies: function () {
+      if (!this.proxyFilter) return this.proxies;
+      return this.proxies.filter(function (p) { return p.client_id === this.proxyFilter; }.bind(this));
+    }
+  },
+  mounted: function () {
+    this.loadClients();
+    this.loadProxies();
+  },
+  methods: {
+    formatTime: function (t) {
+      if (!t) return '';
+      var d = new Date(t);
+      if (isNaN(d.getTime())) return String(t);
+      var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    },
+    getTypeTag: function (type) {
+      var map = { TCP: '', UDP: 'warning', STCP: 'success', XTCP: 'info', HTTP: 'danger', HTTPS: 'danger' };
+      return map[type] || '';
+    },
+
+    /* ======================== 客户端 ======================== */
+    loadClients: function () {
+      var self = this;
+      self.clientLoading = true;
+      axios.get(BASE + '/client/list').then(function (res) {
+        if (res.data.success) {
+          self.clients = res.data.items || [];
+          self.frpBasePath = res.data.frpBasePath || '';
+        }
+      }).finally(function () { self.clientLoading = false; });
+    },
+    openClientDialog: function (client) {
+      if (client) {
+        this.clientForm = { id: client.id, client_id: client.client_id || '', client_name: client.client_name, server_addr: client.server_addr, server_port: client.server_port, login_fail_exit: client.login_fail_exit, auth_token: '', web_server_addr: client.web_server_addr || '127.0.0.1', web_server_port: client.web_server_port || 0, web_server_user: client.web_server_user || '', web_server_pass: '', config_path: client.config_path || '', remark: client.remark || '' };
+      } else {
+        this.clientForm = { id: null, client_id: '', client_name: '', server_addr: '', server_port: 7000, login_fail_exit: false, auth_token: '', web_server_addr: '127.0.0.1', web_server_port: 0, web_server_user: '', web_server_pass: '', config_path: '', remark: '' };
+      }
+      this.clientDialogVisible = true;
+    },
+    saveClient: function () {
+      var self = this;
+      if (!self.clientForm.client_name || !self.clientForm.server_addr) { ElMessage.error('请填写名称和地址'); return; }
+      self.clientSaving = true;
+      var url = self.clientForm.id ? BASE + '/client/update' : BASE + '/client/add';
+      axios.post(url, self.clientForm).then(function (res) {
+        if (res.data.success) { ElMessage.success(self.clientForm.id ? '已更新' : '已新增'); self.clientDialogVisible = false; self.loadClients(); }
+        else ElMessage.error(res.data.error || '操作失败');
+      }).catch(function () { ElMessage.error('请求失败'); }).finally(function () { self.clientSaving = false; });
+    },
+    deleteClient: function (client) {
+      var self = this;
+      ElMessageBox.confirm('确定要删除「' + client.client_name + '」吗？', '确认', { type: 'warning' }).then(function () {
+        axios.post(BASE + '/client/delete', { id: client.id }).then(function (res) {
+          if (res.data.success) { ElMessage.success('已删除'); self.loadClients(); self.loadProxies(); }
+          else ElMessage.error(res.data.error || '删除失败');
+        });
+      }).catch(function () {});
+    },
+    generateConfig: function (client) {
+      var self = this;
+      axios.post(BASE + '/client/generate-config', { client_id: client.id }).then(function (res) {
+        if (res.data.success) {
+          self.configResult = res.data;
+          self.configDialogVisible = true;
+          if (res.data.path) ElMessage.success('配置已生成并写入');
+        } else {
+          ElMessage.error(res.data.error || '生成失败');
+        }
+      }).catch(function () { ElMessage.error('请求失败'); });
+    },
+    reloadClient: function (client) {
+      ElMessageBox.confirm('确定要重载「' + client.client_name + '」吗？', '确认').then(function () {
+        axios.post(BASE + '/client/reload', { client_id: client.id }).then(function (res) {
+          if (res.data.success) ElMessage.success(res.data.message || '重载成功');
+          else ElMessage.error(res.data.message || '重载失败');
+        });
+      }).catch(function () {});
+    },
+
+    /* ======================== 代理规则 ======================== */
+    loadProxies: function () {
+      var self = this;
+      self.proxyLoading = true;
+      var params = {};
+      if (self.proxyFilter) params.clientId = self.proxyFilter;
+      axios.get(BASE + '/proxy/list', { params: params }).then(function (res) {
+        if (res.data.success) self.proxies = res.data.items || [];
+      }).finally(function () { self.proxyLoading = false; });
+    },
+    openProxyDialog: function (proxy) {
+      if (proxy) {
+        this.proxyForm = { id: proxy.id, client_id: proxy.client_id, proxy_name: proxy.proxy_name, proxy_type: proxy.proxy_type, local_ip: proxy.local_ip || '127.0.0.1', local_port: proxy.local_port, remote_port: proxy.remote_port || 0, secret_key: proxy.secret_key || '', remark: proxy.remark || '' };
+      } else {
+        this.proxyForm = { id: null, client_id: '', proxy_name: '', proxy_type: 'TCP', local_ip: '127.0.0.1', local_port: 22, remote_port: 6000, secret_key: '', remark: '' };
+      }
+      this.proxyDialogVisible = true;
+    },
+    saveProxy: function () {
+      var self = this;
+      if (!self.proxyForm.client_id || !self.proxyForm.proxy_name || !self.proxyForm.local_port) { ElMessage.error('请填写必要信息'); return; }
+      self.proxySaving = true;
+      var url = self.proxyForm.id ? BASE + '/proxy/update' : BASE + '/proxy/add';
+      axios.post(url, self.proxyForm).then(function (res) {
+        if (res.data.success) { ElMessage.success(self.proxyForm.id ? '已更新' : '已新增'); self.proxyDialogVisible = false; self.loadProxies(); }
+        else ElMessage.error(res.data.error || '操作失败');
+      }).catch(function () { ElMessage.error('请求失败'); }).finally(function () { self.proxySaving = false; });
+    },
+    toggleProxy: function (proxy) {
+      axios.post(BASE + '/proxy/toggle', { id: proxy.id }).then(function (res) {
+        if (res.data.success) ElMessage.success('状态已切换');
+      });
+    },
+    deleteProxy: function (proxy) {
+      var self = this;
+      ElMessageBox.confirm('确定要删除「' + proxy.proxy_name + '」吗？', '确认', { type: 'warning' }).then(function () {
+        axios.post(BASE + '/proxy/delete', { id: proxy.id }).then(function (res) {
+          if (res.data.success) { ElMessage.success('已删除'); self.loadProxies(); }
+          else ElMessage.error(res.data.error || '删除失败');
+        });
+      }).catch(function () {});
+    }
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

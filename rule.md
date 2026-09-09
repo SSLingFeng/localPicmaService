@@ -551,10 +551,43 @@ Windows 目录名末尾的 `.` 会被强制替换为 `_`，需根据 `path` 日�
 ### Java 注意事项
 
 - Spring Boot 4 使用 **Jakarta EE**，包名是 `jakarta.servlet`，不是 `javax.servlet`
-- `Map.of()` 最多支持 10 对键值（20 个参数），超过时使用 `LinkedHashMap`
 - SQL 工具使用自定义占位符 `{?类型|参数名?}`，不是 `?` 占位符
 - JSONB 字段操作：用 `varchar` 传值 + `::jsonb` SQL 转型
 - Timestamp 字段操作：用 `varchar` 传值 + `::timestamp` SQL 转型
 - JSON 解析使用 Hutool 的 `JSONObject` / `JSONArray`
 - SqlUtil 返回的 boolean 字段是 `int`（0/1），需要手动转换
+- SqlUtil 返回的 time 字段是 `java.util.Date`，需要格式化为字符串
+
+### Map.of() 参数限制问题
+
+**问题**：
+编译时报错 `actual argument list and formal argument list differ in length`，提示找不到合适的 `Map.of()` 方法。
+
+**原因**：
+Java 的 `Map.of()` 工厂方法最多只支持 **10 对键值（20 个参数）**。当构建的 Map 超过 10 个键值对时，没有对应的重载方法，编译失败。
+
+```java
+// 错误示例：11 对键值，编译失败
+Map.of("k1", v1, "k2", v2, ..., "k11", v11);  // ❌
+```
+
+**解决方法**：
+超过 10 对键值时，使用 `LinkedHashMap` 替代：
+
+```java
+// 正确做法
+Map<String, Object> params = new LinkedHashMap<>();
+params.put("k1", v1);
+params.put("k2", v2);
+// ... 任意数量
+params.put("k11", v11);
+SqlUtil.exec(sql, params);
+```
+
+**适用场景**：
+- `SqlUtil.exec()` / `SqlUtil.query()` / `SqlUtil.row()` 的参数 Map
+- `Map.of()` 返回值（如接口返回 JSON）
+
+**经验总结**：
+凡是需要动态构建参数、字段较多的场景，统一使用 `LinkedHashMap`，避免后续添加字段时踩坑。
 - SqlUtil 返回的 time 字段是 `java.util.Date`，需要格式化为字符串
