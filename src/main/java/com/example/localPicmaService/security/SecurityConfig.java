@@ -46,6 +46,7 @@ public class SecurityConfig {
                                 "/api/public/file",
                                 "/api/public/home-image",
                                 "/api/squad/**",
+                                "/api/comic/**",
                                 "/health").permitAll()
                         .anyRequest().access(superAdminOrAuthenticated())
                 )
