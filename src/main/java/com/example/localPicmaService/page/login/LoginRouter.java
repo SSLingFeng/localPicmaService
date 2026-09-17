@@ -62,4 +62,9 @@ public class LoginRouter {
     public ResponseEntity<byte[]> frp() {
         return ResourceController.serveFile("static/module/frp/main.html");
     }
+
+    @GetMapping("/system")
+    public ResponseEntity<byte[]> system() {
+        return ResourceController.serveFile("static/module/system/main.html");
+    }
 }

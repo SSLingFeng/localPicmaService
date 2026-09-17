@@ -1,0 +1,54 @@
+{
+    "clientID": "my_pc",
+    "user": "",
+    "serverAddr": "121.43.188.100",
+    "serverPort": 15830,
+    "loginFailExit": false,
+    "auth": {
+        "method": "token",
+        "token": "czw+0701"
+    },
+    "webServer": {
+        "addr": "127.0.0.1",
+        "port": 14751,
+        "user": "czw",
+        "password": "czw+0701"
+    },
+    "transport": {
+        "poolCount": 5,
+        "protocol": "tcp",
+        "tls": {
+            "enable": true
+        }
+    },
+    "proxies": [
+        {
+            "name": "hyperPcWin",
+            "type": "stcp",
+            "localIP": "192.168.20.2",
+            "localPort": 3389,
+            "secretKey": "hyperPcWin"
+        },
+        {
+            "name": "MC",
+            "type": "tcp",
+            "localIP": "127.0.0.1",
+            "localPort": 25565,
+            "remotePort": 25565
+        },
+        {
+            "name": "scum2",
+            "type": "tcp",
+            "localIP": "127.0.0.1",
+            "localPort": 7779,
+            "remotePort": 7779
+        },
+        {
+            "name": "scum_game",
+            "type": "udp",
+            "localIP": "127.0.0.1",
+            "localPort": 7777,
+            "remotePort": 7777
+        }
+    ]
+}

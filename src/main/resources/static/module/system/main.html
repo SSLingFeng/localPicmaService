@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统管理</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
+  <style>
+    body { background: #090912; color: #e8e4dc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
+    .page-header { text-align: center; padding: 30px 0 20px; }
+    .page-header h1 { font-family: 'Noto Serif SC', serif; font-size: 28px; color: #d4a853; margin: 0; }
+    .tabs { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
+    .tab-item { padding: 10px 28px; border-radius: 8px; background: #111122; border: 1px solid #252545; color: #6b6580; font-size: 14px; cursor: pointer; transition: all .2s; }
+    .tab-item:hover { border-color: #d4a853; color: #d4a853; }
+    .tab-item.active { background: #d4a853; border-color: #d4a853; color: #090912; font-weight: 600; }
+    .panel { background: #111122; border: 1px solid #252545; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .panel-header h3 { font-size: 16px; color: #e8e4dc; margin: 0; }
+    .el-table { --el-table-bg-color: #111122; --el-table-tr-bg-color: #111122; --el-table-header-bg-color: #171730; --el-table-border-color: #252545; --el-table-text-color: #e8e4dc; --el-table-header-text-color: #6b6580; --el-table-row-hover-bg-color: #1a1a30; }
+    .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell { background: #15152a!important; }
+    .back-fab { position: fixed; bottom: 24px; right: 24px; display: flex; align-items: center; gap: 6px; padding: 10px 18px; background: #171730; border: 1px solid #252545; border-radius: 10px; color: #6b6580; text-decoration: none; font-size: 13px; }
+    .back-fab:hover { border-color: #d4a853; color: #d4a853; }
+    .config-path { font-size: 12px; color: #6b6580; margin-bottom: 12px; }
+    .config-path code { color: #d4a853; background: #171730; padding: 2px 6px; border-radius: 3px; }
+    .value-cell { display: flex; align-items: center; gap: 8px; }
+    .value-cell .el-input { flex: 1; }
+    .type-tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; background: rgba(212, 168, 83, .15); color: #d4a853; }
+    .file-size { font-size: 12px; color: #6b6580; }
+    .preview-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #252545; }
+  </style>
+</head>
+<body>
+<div id="app" v-cloak class="wrap">
+
+  <header class="page-header">
+    <h1><i class="el-icon-setting"></i> 系统管理</h1>
+  </header>
+
+  <!-- Tab 导航 -->
+  <nav class="tabs">
+    <div class="tab-item" :class="{ active: activeTab === 'config' }" @click="activeTab = 'config'">
+      <i class="el-icon-document"></i> 系统配置
+    </div>
+    <div class="tab-item" :class="{ active: activeTab === 'file' }" @click="activeTab = 'file'; loadFiles()">
+      <i class="el-icon-folder-opened"></i> 文件管理
+    </div>
+  </nav>
+
+  <!-- ==================== 系统配置 Tab ==================== -->
+  <div v-show="activeTab === 'config'">
+    <div class="panel">
+      <div class="panel-header">
+        <h3>SystemConfig.json</h3>
+        <div style="display:flex;gap:8px">
+          <el-button size="small" icon="el-icon-refresh" @click="loadConfig">刷新</el-button>
+          <el-button type="primary" size="small" :loading="saving" @click="saveConfig">保存全部</el-button>
+        </div>
+      </div>
+      <div class="config-path">配置文件路径: <code>{{ configPath }}</code></div>
+
+      <el-table :data="configItems" stripe size="small" v-loading="configLoading" empty-text="暂无配置" style="width:100%">
+        <el-table-column label="配置项" min-width="160">
+          <template #default="{ row }">
+            <span style="font-family:monospace;font-size:12px;color:#d4a853">{{ row.key }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="说明" min-width="200">
+          <template #default="{ row }">{{ row.description }}</template>
+        </el-table-column>
+        <el-table-column label="类型" width="80" align="center">
+          <template #default="{ row }">
+            <span class="type-tag">{{ row.type }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="值" min-width="300">
+          <template #default="{ row }">
+            <div v-if="row.type === 'boolean'" class="value-cell">
+              <el-switch v-model="row.value" />
+              <span style="font-size:12px;color:#6b6580">{{ row.value }}</span>
+            </div>
+            <div v-else-if="row.type === 'int'" class="value-cell">
+              <el-input-number v-model="row.value" :min="0" size="small" controls-position="right" />
+            </div>
+            <div v-else-if="row.type === 'Path'" class="value-cell">
+              <el-input v-model="row.value" size="small" placeholder="输入路径" />
+            </div>
+            <div v-else class="value-cell">
+              <el-input v-model="row.value" size="small" placeholder="输入值" />
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+  </div>
+
+  <!-- ==================== 文件管理 Tab ==================== -->
+  <div v-show="activeTab === 'file'">
+    <div class="panel">
+      <div class="panel-header">
+        <h3>RustFS 文件列表 ({{ fileTotal }} 个文件)</h3>
+        <div style="display:flex;gap:8px">
+          <el-button size="small" icon="el-icon-refresh" @click="loadFiles">刷新</el-button>
+          <el-button type="danger" size="small" :disabled="!selectedFiles.length" @click="batchDeleteFiles">
+            批量删除 ({{ selectedFiles.length }})
+          </el-button>
+        </div>
+      </div>
+
+      <el-table :data="files" stripe size="small" v-loading="fileLoading" empty-text="暂无文件"
+                style="width:100%" @selection-change="onFileSelectChange" row-key="id">
+        <el-table-column type="selection" width="45" align="center" />
+        <el-table-column label="文件名" min-width="150">
+          <template #default="{ row }">
+            <span style="font-size:13px">{{ row.file_name }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="格式" width="70" align="center">
+          <template #default="{ row }">
+            <span class="type-tag">{{ row.file_format }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="大小" width="90" align="right">
+          <template #default="{ row }">
+            <span class="file-size">{{ formatSize(row.file_size) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="存储路径" min-width="200">
+          <template #default="{ row }">
+            <span style="font-family:monospace;font-size:11px;color:#6b6580">{{ row.rustfs_key }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="创建时间" width="140">
+          <template #default="{ row }">{{ formatTime(row.create_date) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="130" align="center">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="previewFile(row)">预览</el-button>
+            <el-button size="small" type="danger" @click="deleteFile(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 分页 -->
+      <div v-if="fileTotal > 0" style="margin-top:16px;display:flex;justify-content:center">
+        <el-pagination background layout="prev, pager, next"
+                       :total="fileTotal" :page-size="filePageSize" :current-page="filePage"
+                       @current-change="onFilePageChange" />
+      </div>
+    </div>
+  </div>
+
+  <!-- 预览弹窗 -->
+  <el-dialog v-model="previewVisible" width="80%" top="5vh" title="文件预览">
+    <div style="text-align:center">
+      <img v-if="previewUrl && previewIsImage" :src="previewUrl" style="max-width:100%;max-height:75vh;border-radius:4px" />
+      <video v-else-if="previewUrl && previewIsVideo" :src="previewUrl" controls style="max-width:100%;max-height:75vh;border-radius:4px"></video>
+      <iframe v-else-if="previewUrl" :src="previewUrl" style="width:100%;height:70vh;border:none;border-radius:4px"></iframe>
+      <div v-else style="color:#6b6580;padding:40px">无法预览此文件类型</div>
+    </div>
+  </el-dialog>
+
+  <a href="/home" class="back-fab">&larr; 首页</a>
+</div>
+
+<script src="/public/res/module/auth.js"></script>
+<script src="/public/res/module/login-modal.js"></script>
+<script src="/public/res/lib/vue.global.prod.js"></script>
+<script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
+<script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
+<script>
+var ElMessage = ElementPlus.ElMessage;
+var ElMessageBox = ElementPlus.ElMessageBox;
+var BASE = '/page/system/api';
+
+Vue.createApp({
+  data: function () {
+    return {
+      activeTab: 'config',
+
+      /* 系统配置 */
+      configItems: [],
+      configPath: '',
+      configLoading: false,
+      saving: false,
+
+      /* 文件管理 */
+      files: [],
+      fileTotal: 0,
+      filePage: 1,
+      filePageSize: 20,
+      fileLoading: false,
+      selectedFiles: [],
+
+      /* 预览 */
+      previewVisible: false,
+      previewUrl: '',
+      previewIsImage: false,
+      previewIsVideo: false
+    };
+  },
+  mounted: function () {
+    this.loadConfig();
+  },
+  methods: {
+    /* ======================== 工具 ======================== */
+    formatTime: function (t) {
+      if (!t) return '';
+      var d = new Date(t);
+      if (isNaN(d.getTime())) return String(t);
+      var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    },
+    formatSize: function (bytes) {
+      if (!bytes || bytes <= 0) return '0 B';
+      var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      var i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+    },
+
+    /* ======================== 系统配置 ======================== */
+    loadConfig: function () {
+      var self = this;
+      self.configLoading = true;
+      axios.get(BASE + '/config/list').then(function (res) {
+        if (res.data.success) {
+          self.configItems = (res.data.items || []).map(function (item) {
+            if (item.type === 'boolean') {
+              item.value = item.value === true || item.value === 'true' || item.value === 1;
+            }
+            return item;
+          });
+          self.configPath = res.data.path || '';
+        } else {
+          ElMessage.error(res.data.error || '加载失败');
+        }
+      }).catch(function () { ElMessage.error('请求失败'); })
+        .finally(function () { self.configLoading = false; });
+    },
+    saveConfig: function () {
+      var self = this;
+      self.saving = true;
+      var payload = self.configItems.map(function (item) {
+        return { key: item.key, text: item.text, type: item.type, description: item.description, value: item.value };
+      });
+      axios.post(BASE + '/config/save', payload).then(function (res) {
+        if (res.data.success) ElMessage.success(res.data.message || '已保存');
+        else ElMessage.error(res.data.error || '保存失败');
+      }).catch(function () { ElMessage.error('请求失败'); })
+        .finally(function () { self.saving = false; });
+    },
+
+    /* ======================== 文件管理 ======================== */
+    loadFiles: function () {
+      var self = this;
+      self.fileLoading = true;
+      var from = (self.filePage - 1) * self.filePageSize;
+      axios.get(BASE + '/file/list', { params: { from: from, size: self.filePageSize } }).then(function (res) {
+        if (res.data.success) {
+          self.files = res.data.items || [];
+          self.fileTotal = res.data.total || 0;
+        }
+      }).catch(function () { ElMessage.error('加载文件列表失败'); })
+        .finally(function () { self.fileLoading = false; });
+    },
+    onFilePageChange: function (page) {
+      this.filePage = page;
+      this.loadFiles();
+    },
+    onFileSelectChange: function (selection) {
+      this.selectedFiles = selection;
+    },
+    deleteFile: function (file) {
+      var self = this;
+      ElMessageBox.confirm('确定要删除「' + file.file_name + '」吗？此操作不可撤销。', '确认删除', { type: 'warning' }).then(function () {
+        axios.post(BASE + '/file/delete', { id: file.id }).then(function (res) {
+          if (res.data.success) { ElMessage.success('已删除'); self.loadFiles(); }
+          else ElMessage.error(res.data.error || '删除失败');
+        }).catch(function () { ElMessage.error('请求失败'); });
+      }).catch(function () {});
+    },
+    batchDeleteFiles: function () {
+      var self = this;
+      var ids = self.selectedFiles.map(function (f) { return f.id; });
+      ElMessageBox.confirm('确定要删除选中的 ' + ids.length + ' 个文件吗？此操作不可撤销。', '批量删除', { type: 'error' }).then(function () {
+        axios.post(BASE + '/file/batch-delete', { ids: ids }).then(function (res) {
+          if (res.data.success) {
+            ElMessage.success('已删除 ' + res.data.deleted + ' 个文件');
+            self.selectedFiles = [];
+            self.loadFiles();
+          } else {
+            ElMessage.error(res.data.error || '批量删除失败');
+          }
+        }).catch(function () { ElMessage.error('请求失败'); });
+      }).catch(function () {});
+    },
+    previewFile: function (file) {
+      var self = this;
+      var url = BASE + '/file/preview?id=' + file.id;
+      var fmt = (file.file_format || '').toLowerCase();
+
+      self.previewIsImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].indexOf(fmt) >= 0;
+      self.previewIsVideo = ['mp4', 'webm', 'ogg', 'mov'].indexOf(fmt) >= 0;
+      self.previewUrl = url;
+      self.previewVisible = true;
+    }
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

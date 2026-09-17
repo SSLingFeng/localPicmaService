@@ -327,6 +327,10 @@ public class SystemConfig {
         this.frpBasePath = frpBasePath;
     }
 
+    public String getConfigPath() {
+        return configPath;
+    }
+
     // ======================== RustFS Getter / Setter ========================
 
     public String getRustfsEndpoint() { return rustfsEndpoint; }
