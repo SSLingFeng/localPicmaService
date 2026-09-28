@@ -183,6 +183,23 @@ src/main/resources/
 | `POST` | `/page/comic/import/api/upload` | 上传 .db 文件并导入 |
 | `POST` | `/page/comic/import/api/stop` | 停止导入任务 |
 
+### 系统管理 API（`/page/system/api`）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/config/list` | 获取系统配置列表 |
+| `POST` | `/config/save` | 保存系统配置（热更新） |
+| `GET` | `/file/list` | 文件列表（支持搜索） |
+| `POST` | `/file/delete` | 单个删除文件 |
+| `POST` | `/file/batch-delete` | 批量删除文件 |
+| `GET` | `/file/preview?id=` | 文件预览 |
+
+**文件列表搜索参数**：
+- `keyword` — 按文件名模糊搜索（ILIKE）
+- `format` — 按文件格式精确匹配（jpg/png/webp 等）
+- `from` — 分页偏移量
+- `size` — 每页条数
+
 ### 统一上传 API
 
 | 路径 | 说明 |
@@ -223,6 +240,8 @@ src/main/resources/
 | `/squad` | squad/squad.html | 战队管理 |
 | `/cartoon` | router/private/cartoon/main.html | 漫画用户页（推荐/搜索/我的） |
 | `/admin/manga` | admin/manga/main.html | 漫画后台管理（管理/导入/压缩/去重） |
+| `/frp` | frp/main.html | FRP 控制端（客户端实例/代理规则） |
+| `/system` | system/main.html | 系统管理（系统配置/文件管理） |
 | `/test` | test/main.html | 工具测试 |
 | `/home/admin` | home/admin.html | 首页内容管理 |
 
@@ -413,6 +432,26 @@ CREATE TABLE public.manga_user_preference
 
 ---
 
+## 系统管理模块（`/system`）
+
+### 两 Tab 架构
+
+| Tab | 功能 | 说明 |
+|-----|------|------|
+| 系统配置 | 查看/编辑 SystemConfig.json | 平铺为表格，支持全量修改，保存后热更新 |
+| 文件管理 | RustFS 文件管理 | 搜索/分页/单删/批量删除/预览 |
+
+### 文件管理功能
+
+- **搜索**：按文件名模糊搜索（`keyword`）+ 按格式筛选（`format`）
+- **分页**：20 条/页，支持翻页
+- **复选框**：自定义 `<el-checkbox>` 列（不用 `type="selection"`，避免布局错乱）
+- **批量删除**：勾选多个文件后批量删除
+- **单个操作**：每行有预览和删除按钮
+- **预览弹窗**：图片直接显示，视频用 `<video>` 播放，其他用 `<iframe>`
+
+---
+
 ## 配置管理
 
 ### SystemConfig
@@ -537,6 +576,55 @@ Windows 目录名末尾的 `.` 会被强制替换为 `_`，需根据 `path` 日�
 - 弹窗绑定：`v-model="dialogVisible"`（不用 `:visible.sync`）
 - 事件修饰符：`@submit.prevent`（不用 `.native`）
 - 尺寸：`size="small"`（不用 `size="mini"`）
+
+### el-table 复选框列布局错乱问题
+
+**问题**：
+使用 `<el-table-column type="selection">` 做复选框选择时，复选框列独立成一行，操作列跑到所有列的上方。
+
+**原因**：
+Element Plus 2.x 的 `el-table` 的 `type="selection"` 列在有横向滚动（`is-scrolling-right`）时，会使用绝对定位独立渲染复选框，导致与普通列的布局冲突。即使没有 `fixed="right"`，只要表格总宽度超过容器触发滚动，selection 列就会错位。
+
+**解决**：
+不用内置的 `type="selection"`，改用自定义 `<el-checkbox>` 列：
+
+```html
+<el-table :data="files" stripe size="small" style="width:100%">
+  <el-table-column label="选择" width="55" align="center">
+    <template #header>
+      <el-checkbox v-model="allSelected" @change="toggleAll" />
+    </template>
+    <template #default="{ row }">
+      <el-checkbox v-model="row._selected" @change="onCheckChange" />
+    </template>
+  </el-table-column>
+  <!-- 其他列... -->
+</el-table>
+```
+
+```javascript
+// 数据加载时添加 _selected 属性
+loadData: function () {
+  this.items = (res.data.items || []).map(function (item) {
+    item._selected = false;
+    return item;
+  });
+},
+toggleAll: function (val) {
+  this.items.forEach(function (f) { f._selected = val; });
+},
+onCheckChange: function () {
+  this.allSelected = this.items.length > 0 && this.items.every(function (f) { return f._selected; });
+},
+getSelected: function () {
+  return this.items.filter(function (f) { return f._selected; });
+}
+```
+
+**经验总结**：
+- `type="selection"` + 横向滚动 = 布局错乱
+- 自定义 `<el-checkbox>` 列与普通列一样参与流式布局，不受滚动影响
+- 通过 `_selected` 属性控制每行的选中状态，全选用表头插槽实现
 
 ### 移动端适配规范
 

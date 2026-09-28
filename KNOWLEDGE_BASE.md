@@ -451,6 +451,49 @@ SqlUtil.query("SELECT data::text as data FROM t WHERE id = ?", params);
 
 **解决**: 只在服务端明确返回401时清除认证，网络错误不清除cookie
 
+### 9.7 el-table 复选框列布局错乱
+
+**问题**: 使用 `<el-table-column type="selection">` 做复选框时，复选框列独立成一行，操作列跑到所有列上方。
+
+**原因**: Element Plus 2.x 的 `el-table` 的 `type="selection"` 列在有横向滚动时，使用绝对定位独立渲染，与普通列布局冲突。
+
+**解决**: 不用内置 `type="selection"`，改用自定义 `<el-checkbox>` 列：
+
+```html
+<el-table :data="files" stripe size="small" style="width:100%">
+  <el-table-column label="选择" width="55" align="center">
+    <template #header>
+      <el-checkbox v-model="allSelected" @change="toggleAll" />
+    </template>
+    <template #default="{ row }">
+      <el-checkbox v-model="row._selected" @change="onCheckChange" />
+    </template>
+  </el-table-column>
+  <!-- 其他列正常定义 -->
+</el-table>
+```
+
+```javascript
+// 加载数据时添加 _selected 属性
+loadData: function () {
+  this.items = (res.data.items || []).map(function (item) {
+    item._selected = false;
+    return item;
+  });
+},
+toggleAll: function (val) {
+  this.items.forEach(function (f) { f._selected = val; });
+},
+onCheckChange: function () {
+  this.allSelected = this.items.length > 0 && this.items.every(function (f) { return f._selected; });
+},
+getSelected: function () {
+  return this.items.filter(function (f) { return f._selected; });
+}
+```
+
+**经验**: `type="selection"` + 横向滚动 = 布局错乱，自定义 `<el-checkbox>` 列不受影响。
+
 ---
 
 ## 10. 配置文件说明

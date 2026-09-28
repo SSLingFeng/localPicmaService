@@ -96,18 +96,38 @@ public class SystemController {
 
     @GetMapping("/file/list")
     public Map<String, Object> fileList(@RequestParam(defaultValue = "0") int from,
-                                        @RequestParam(defaultValue = "20") int size) throws Exception {
-        List<Map<String, Object>> rows = SqlUtil.query(
-                "SELECT id, file_name, file_format, file_size, access_url, rustfs_key, create_date "
-                        + "FROM rustfs_file ORDER BY create_date DESC LIMIT " + size + " OFFSET " + from,
-                Map.of(), size);
+                                        @RequestParam(defaultValue = "20") int size,
+                                        @RequestParam(defaultValue = "") String keyword,
+                                        @RequestParam(defaultValue = "") String format) throws Exception {
+        List<String> conditions = new ArrayList<>();
+        Map<String, Object> params = new LinkedHashMap<>();
+        int idx = 0;
 
-        Map<String, Object> countRow = SqlUtil.row("SELECT COUNT(*) AS cnt FROM rustfs_file", Map.of());
+        if (keyword != null && !keyword.isBlank()) {
+            conditions.add("file_name ILIKE {?varchar|p" + idx + "?}");
+            params.put("p" + idx, "%" + keyword + "%");
+            idx++;
+        }
+        if (format != null && !format.isBlank()) {
+            conditions.add("file_format = {?varchar|p" + idx + "?}");
+            params.put("p" + idx, format);
+            idx++;
+        }
+
+        String where = conditions.isEmpty() ? "1=1" : String.join(" AND ", conditions);
+
+        Map<String, Object> countRow = SqlUtil.row(
+                "SELECT COUNT(*) AS cnt FROM rustfs_file WHERE " + where, params);
         long total = 0;
         if (countRow != null) {
             Object cnt = countRow.values().iterator().next();
             if (cnt instanceof Number) total = ((Number) cnt).longValue();
         }
+
+        List<Map<String, Object>> rows = SqlUtil.query(
+                "SELECT id, file_name, file_format, file_size, access_url, rustfs_key, create_date "
+                        + "FROM rustfs_file WHERE " + where + " ORDER BY create_date DESC LIMIT " + size + " OFFSET " + from,
+                params, size);
 
         return Map.of("success", true, "items", rows != null ? rows : List.of(), "total", total);
     }

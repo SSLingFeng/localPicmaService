@@ -103,15 +103,40 @@
         <h3>RustFS 文件列表 ({{ fileTotal }} 个文件)</h3>
         <div style="display:flex;gap:8px">
           <el-button size="small" icon="el-icon-refresh" @click="loadFiles">刷新</el-button>
-          <el-button type="danger" size="small" :disabled="!selectedFiles.length" @click="batchDeleteFiles">
-            批量删除 ({{ selectedFiles.length }})
+          <el-button type="danger" size="small" :disabled="!files.some(function(f){return f._selected})" @click="batchDeleteFiles">
+            批量删除 ({{ files.filter(function(f){return f._selected}).length }})
           </el-button>
         </div>
       </div>
 
+      <!-- 搜索栏 -->
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+        <el-input v-model="fileSearchKeyword" placeholder="搜索文件名..." clearable prefix-icon="el-icon-search"
+                  size="small" style="width:250px" @keyup.enter="onFileSearch" @clear="onFileSearch" />
+        <el-select v-model="fileSearchFormat" placeholder="全部格式" clearable size="small" style="width:130px" @change="onFileSearch">
+          <el-option label="全部" value="" />
+          <el-option label="JPG" value="jpg" />
+          <el-option label="JPEG" value="jpeg" />
+          <el-option label="PNG" value="png" />
+          <el-option label="WebP" value="webp" />
+          <el-option label="GIF" value="gif" />
+          <el-option label="MP4" value="mp4" />
+          <el-option label="PDF" value="pdf" />
+        </el-select>
+        <el-button size="small" type="primary" icon="el-icon-search" @click="onFileSearch">搜索</el-button>
+        <el-button size="small" icon="el-icon-refresh-left" @click="resetFileSearch">重置</el-button>
+      </div>
+
       <el-table :data="files" stripe size="small" v-loading="fileLoading" empty-text="暂无文件"
-                style="width:100%" @selection-change="onFileSelectChange" row-key="id">
-        <el-table-column type="selection" width="45" align="center" />
+                style="width:100%">
+        <el-table-column label="选择" width="55" align="center">
+          <template #header>
+            <el-checkbox v-model="allFilesSelected" @change="toggleAllFiles" />
+          </template>
+          <template #default="{ row }">
+            <el-checkbox v-model="row._selected" @change="onFileCheckChange" />
+          </template>
+        </el-table-column>
         <el-table-column label="文件名" min-width="150">
           <template #default="{ row }">
             <span style="font-size:13px">{{ row.file_name }}</span>
@@ -192,7 +217,9 @@ Vue.createApp({
       filePage: 1,
       filePageSize: 20,
       fileLoading: false,
-      selectedFiles: [],
+      allFilesSelected: false,
+      fileSearchKeyword: '',
+      fileSearchFormat: '',
 
       /* 预览 */
       previewVisible: false,
@@ -256,21 +283,49 @@ Vue.createApp({
     loadFiles: function () {
       var self = this;
       self.fileLoading = true;
+      self.allFilesSelected = false;
       var from = (self.filePage - 1) * self.filePageSize;
-      axios.get(BASE + '/file/list', { params: { from: from, size: self.filePageSize } }).then(function (res) {
+      axios.get(BASE + '/file/list', {
+        params: {
+          from: from,
+          size: self.filePageSize,
+          keyword: self.fileSearchKeyword || '',
+          format: self.fileSearchFormat || ''
+        }
+      }).then(function (res) {
         if (res.data.success) {
-          self.files = res.data.items || [];
+          self.files = (res.data.items || []).map(function (item) {
+            item._selected = false;
+            return item;
+          });
           self.fileTotal = res.data.total || 0;
         }
       }).catch(function () { ElMessage.error('加载文件列表失败'); })
         .finally(function () { self.fileLoading = false; });
     },
+    onFileSearch: function () {
+      this.filePage = 1;
+      this.loadFiles();
+    },
+    resetFileSearch: function () {
+      this.fileSearchKeyword = '';
+      this.fileSearchFormat = '';
+      this.filePage = 1;
+      this.loadFiles();
+    },
     onFilePageChange: function (page) {
       this.filePage = page;
       this.loadFiles();
     },
-    onFileSelectChange: function (selection) {
-      this.selectedFiles = selection;
+    toggleAllFiles: function (val) {
+      this.files.forEach(function (f) { f._selected = val; });
+    },
+    onFileCheckChange: function () {
+      var all = this.files.length > 0 && this.files.every(function (f) { return f._selected; });
+      this.allFilesSelected = all;
+    },
+    getSelectedFiles: function () {
+      return this.files.filter(function (f) { return f._selected; });
     },
     deleteFile: function (file) {
       var self = this;
@@ -283,12 +338,12 @@ Vue.createApp({
     },
     batchDeleteFiles: function () {
       var self = this;
-      var ids = self.selectedFiles.map(function (f) { return f.id; });
+      var selected = self.getSelectedFiles();
+      var ids = selected.map(function (f) { return f.id; });
       ElMessageBox.confirm('确定要删除选中的 ' + ids.length + ' 个文件吗？此操作不可撤销。', '批量删除', { type: 'error' }).then(function () {
         axios.post(BASE + '/file/batch-delete', { ids: ids }).then(function (res) {
           if (res.data.success) {
             ElMessage.success('已删除 ' + res.data.deleted + ' 个文件');
-            self.selectedFiles = [];
             self.loadFiles();
           } else {
             ElMessage.error(res.data.error || '批量删除失败');
