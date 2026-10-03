@@ -255,3 +255,34 @@
 .work-date{
   font-size:var(--fs-tiny);color:var(--text-muted);
 }
+
+/* ============ 详情弹窗（游戏/生活） ============ */
+.game-card, .life-card { cursor: pointer; }
+
+.detail-dialog { border-radius: 12px; }
+.el-dialog.detail-dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+.el-dialog.detail-dialog .el-dialog__title {
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+.el-dialog.detail-dialog .el-dialog__headerbtn .el-dialog__close {
+  color: var(--text-secondary);
+}
+.detail-carousel { border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+.detail-carousel .el-carousel__arrow {
+  background-color: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+.detail-md { margin-top: 4px; }
+.detail-md .md-editor { background: transparent !important; }
+.detail-plain {
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  line-height: 1.9;
+  white-space: pre-wrap;
+}

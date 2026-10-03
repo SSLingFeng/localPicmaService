@@ -13,6 +13,8 @@
 
     <!-- Element Plus -->
     <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
+    <!-- md-editor-v3（详情弹窗 Markdown 渲染） -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/md-editor-v3@5.6.0/lib/style.css">
 
 
     <script src="/public/res/module/auth.js"></script>
@@ -104,11 +106,11 @@
                                 <el-row :gutter="16">
                                     <el-col :span="8" v-for="n in 3" :key="n" style="margin-bottom:16px">
                                         <el-skeleton-item variant="image"
-                                                          style="width:100%;height:180px;border-radius:8px"/>
+                                                          style="width:100%;height:180px;border-radius:8px"></el-skeleton-item>
                                         <div style="padding:14px">
-                                            <el-skeleton-item variant="h3" style="width:60%"/>
-                                            <el-skeleton-item variant="text" style="width:100%;margin-top:8px"/>
-                                            <el-skeleton-item variant="text" style="width:80%"/>
+                                            <el-skeleton-item variant="h3" style="width:60%"></el-skeleton-item>
+                                            <el-skeleton-item variant="text" style="width:100%;margin-top:8px"></el-skeleton-item>
+                                            <el-skeleton-item variant="text" style="width:80%"></el-skeleton-item>
                                         </div>
                                     </el-col>
                                 </el-row>
@@ -119,7 +121,8 @@
                                     <el-col :xs="24" :sm="12" :md="8"
                                             v-for="game in games" :key="game.id">
                                         <el-card shadow="hover" :body-style="{ padding: '0' }"
-                                                 class="game-card anim-fade-in-up">
+                                                 class="game-card anim-fade-in-up"
+                                                 @click="openDetail(game, 'game')">
                                             <div class="game-cover">
                                                 <el-image v-if="game.cover" :src="game.cover" fit="cover" lazy>
                                                     <template #error><div class="img-slot"><i
@@ -249,7 +252,8 @@
                                     :timestamp="item.date" placement="top"
                                     :color="item.color || '#c8956c'"
                                     :size="item.important ? 'large' : 'normal'">
-                                <el-card shadow="hover" class="life-card">
+                                <el-card shadow="hover" class="life-card"
+                                         @click="openDetail(item, 'life')">
                                     <div class="life-card-head">
                                         <el-avatar :size="32" :src="item.avatar" icon="el-icon-user"></el-avatar>
                                         <div class="life-card-meta">
@@ -260,11 +264,14 @@
                                         </div>
                                     </div>
                                     <p class="life-card-body">{{ item.content }}</p>
-                                    <div class="life-card-imgs" v-if="item.images && item.images.length">
+                                    <div class="life-card-imgs" v-if="item.images && item.images.length" @click.stop>
                                         <el-image v-for="(img,idx) in item.images.slice(0,3)" :key="idx"
                                                   :src="img" fit="cover"
                                                   :preview-src-list="item.images"
-                                                  class="life-img"></el-image>
+                                                  class="life-img">
+                                            <template #error><div class="img-slot"><i
+                                                    class="el-icon-picture-outline"></i></div></template>
+                                        </el-image>
                                     </div>
                                 </el-card>
                             </el-timeline-item>
@@ -372,6 +379,24 @@
         </el-row>
     </main>
 
+    <!-- ============ 详情弹窗（游戏/生活） ============ -->
+    <el-dialog :title="detail.title" v-model="detail.visible" width="860px" top="4vh"
+               class="detail-dialog" destroy-on-close>
+        <el-carousel v-if="detail.images.length" :interval="5000" height="440px" arrow="always"
+                     indicator-position="none" class="detail-carousel">
+            <el-carousel-item v-for="(img, i) in detail.images" :key="i">
+                <el-image :src="img" fit="contain" style="width:100%;height:100%;background:#0c0c15">
+                    <template #error><div class="img-slot" style="height:440px"><i
+                            class="el-icon-picture-outline"></i></div></template>
+                </el-image>
+            </el-carousel-item>
+        </el-carousel>
+        <md-preview v-if="detail.content && mdReady" :model-value="detail.content" theme="dark"
+                    class="detail-md"></md-preview>
+        <div v-else-if="detail.content" class="detail-md detail-plain">{{ detail.content }}</div>
+        <el-empty v-else description="暂无内容"></el-empty>
+    </el-dialog>
+
     <!-- ============ FOOTER ============ -->
     <footer class="site-footer">
         <el-divider><i class="el-icon-more-outline" style="color:var(--text-muted)"></i></el-divider>
@@ -396,6 +421,7 @@
 <!-- ============ SCRIPTS ============ -->
 <script src="/public/res/lib/vue.global.prod.js"></script>
 <script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/md-editor-v3@5.6.0/lib/umd/index.js"></script>
 <script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
 <script src="/public/res/module/HomePage/api.js"></script>
 <script src="/public/res/module/HomePage/app.js"></script>

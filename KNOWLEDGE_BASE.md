@@ -330,6 +330,14 @@ CREATE TABLE public.{table_name}
 
 从数据库读取 → 组装JSON → 写入文件系统（基于`frpBasePath` + `config_path`）
 
+### 配置导入（前端，2026-09-29）
+
+- 客户端编辑弹窗支持「导入 JSON 配置文件」（纯前端 FileReader 解析，不上传文件）
+- 字段映射兼容 camelCase（frpc 新格式）与下划线旧格式：`clientID/clientId`、`serverAddr/server_addr`、`auth.token`、`loginFailExit`、`webServer.{addr,port,user,password}`
+- `proxies` 数组解析为「待导入代理」表格，可逐条移除；保存客户端后自动逐条调用 `/page/frp/api/proxy/add` 录入
+- 客户端名称、配置路径为空时默认取导入文件名
+- 编辑已有客户端时导入代理会弹确认框；重名代理会被后端查重拦截并计入失败数
+
 ---
 
 ## 8. 开发规范
@@ -493,6 +501,70 @@ getSelected: function () {
 ```
 
 **经验**: `type="selection"` + 横向滚动 = 布局错乱，自定义 `<el-checkbox>` 列不受影响。
+
+### 9.8 SqlUtil 占位符类型留空导致 "Unknown SQL type"（2026-09-29 已修复）
+
+**问题**: 后端报 `java.lang.RuntimeException: Unknown SQL type: `（类型名为空），接口 500。FrpController 曾大量使用 `{?|cid?}` 这种"有竖线但类型留空"的写法，导致代理增删改、客户端删除/重载/状态查询全部不可用。
+
+**原因**: `SqlUtil.compile()` 中 `{?name?}`（无竖线）→ `parts.length == 1` → 类型为 null，由 `setObject` 自动判断，正常；但 `{?|name?}`（有竖线、类型空）→ `parts.length == 2` → 走 `getSqlType("")` → 查表失败 + `parseInt("")` 抛异常。
+
+**解决**: `compile()` 中类型字符串为空白时按 null 处理（等同 `{?name?}`）：
+
+```java
+String typeStr = parts.length > 1 ? parts[0].trim() : "";
+Integer paramType = typeStr.isEmpty() ? null : getSqlType(typeStr);
+```
+
+**经验**: 三种等价的安全写法：`{?varchar|name?}`（显式类型，推荐）、`{?name?}`（自动判断）、`{?|name?}`（修复后等同自动判断）。写新 SQL 时优先带显式类型。
+
+### 9.9 SqlUtil 的 int 布尔值 × el-switch：显示反转 + 页面加载自动触发 change（2026-09-30 已修复）
+
+**问题**: FRP 代理页每次进入弹出一堆「状态已切换」toast，开关全部显示未启用；用户点「激活」后数据库反而变 false（数值反了）。
+
+**原因（三层）**:
+1. `SqlUtil.readValue()` 把所有 `Types.BOOLEAN/BIT` 读成 `int`（`rs.getBoolean() ? 1 : 0`），接口返回 `enabled: 1` 而非 `true`。
+2. `el-switch` 默认 active-value 是严格相等的 `true`，`1 !== true` → 显示为「关」；且对这种非法值会**自动归一化为 false 并触发一次 change**（已用浏览器实测 Element Plus 2.14.4 确认）。
+3. `@change="toggleProxy(row)"` → `POST /proxy/toggle` → 服务端 `enabled = NOT enabled`：**每次进页面把所有代理的 enabled 翻转一次**（数据污染）。用户点开关再翻转一次，表现为数值反了。
+
+**解决（前端归一化，改后端 SqlUtil 影响面太大）**:
+
+```javascript
+// 数据加载时把 int 布尔归一化为真布尔
+self.proxies = (res.data.items || []).map(function (p) {
+    p.enabled = (p.enabled === 1 || p.enabled === true || p.enabled === 'true');
+    return p;
+});
+// toggle 后无论成败都重拉列表，以数据库为准
+```
+
+**已修复位置**: `frp/main.html`（loadProxies 归一化 + toggleProxy 重拉 + openClientDialog 的 login_fail_exit 归一化）、`home/admin.js`（loadConfigs 归一化，原本靠 configsReady 守卫未造成误写库但显示反）。
+
+**经验**: 所有绑定 SqlUtil 结果的 boolean 字段到 el-switch 的场景，必须在加载时归一化；`system/main.html` 的 `row.value` 是字符串配置值，不适用此问题。
+
+### 9.10 首页图片 200 但 0 字节：ImageOutputStream 未 flush（2026-10-03 已修复）
+
+**问题**: 首页游戏日志/光影视界/生活碎片的图片全部不显示；生活碎片显示 "FAILED"（Element Plus el-image 默认 error 文案，未自定义 #error 插槽时出现）。
+
+**原因**: `HomeImageController.encodeWebp()` 用 `ImageIO.createImageOutputStream(baos)` 包装输出流后直接 `baos.toByteArray()`——ImageOutputStream 有内部缓冲，**不 flush 数据不会写入底层流**，导致响应 200 但 body 为 0 字节，浏览器解码失败。已用独立 JVM 测试复现：不 flush = 0 字节，flush = 正常。
+
+**解决**:
+
+```java
+try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+     ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+    writer.setOutput(ios);
+    writer.write(null, new IIOImage(rgb, null, null), writer.getDefaultWriteParam());
+    ios.flush();  // 必须显式 flush
+    return baos.toByteArray();
+} finally { writer.dispose(); }
+```
+
+同时：PNG 降级时 Content-Type 改为返回真实的 `image/png`（原来硬编码 image/webp）；WebP 产出 0 字节也视为编码失败走降级。
+
+**经验**:
+- 所有 `ImageIO.createImageOutputStream/createImageInputStream` 用完必须 close 或 flush，try-with-resources 中 `return` 在资源关闭**之前**执行，必须在 return 前显式 flush
+- el-image 不写 #error 插槽时，加载失败显示英文 "FAILED"（locale 的 image.error），深色主题页面应统一加自定义错误插槽
+- 光影视界的 featured 为空时前端会回退到 picsum.photos 的 mock 图（国内不可达），photo 内容需在首页管理里附图
 
 ---
 

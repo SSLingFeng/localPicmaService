@@ -26,7 +26,7 @@
           <h3 class="panel-title">上传文件</h3>
           <el-form :inline="true" @submit.prevent class="upload-form">
             <el-form-item label="存储路径">
-              <el-input v-model="uploadPath" placeholder="如 images/2025/pic.jpg" style="width:320px" />
+              <el-input v-model="uploadPath" placeholder="如 images/2025/pic.jpg" style="width:320px" ></el-input>
             </el-form-item>
             <el-form-item>
               <el-upload action="" :auto-upload="false" :show-file-list="false"
@@ -52,12 +52,12 @@
           </div>
           <el-table :data="fileList" stripe v-loading="filesLoading" style="width:100%"
                     empty-text="暂无文件" size="small">
-            <el-table-column prop="file_name" label="文件名" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="file_format" label="格式" width="80" align="center" />
+            <el-table-column prop="file_name" label="文件名" min-width="180" show-overflow-tooltip></el-table-column>
+            <el-table-column prop="file_format" label="格式" width="80" align="center"></el-table-column>
             <el-table-column label="大小" width="100" align="center">
               <template #default="{ row }">{{ formatSize(row.file_size) }}</template>
             </el-table-column>
-            <el-table-column prop="rustfs_key" label="RustFS Key" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="rustfs_key" label="RustFS Key" min-width="200" show-overflow-tooltip></el-table-column>
             <el-table-column label="访问URL" min-width="200" show-overflow-tooltip>
               <template #default="{ row }">
                 <a :href="row.access_url" target="_blank" class="url-link">{{ row.access_url }}</a>
@@ -85,13 +85,13 @@
           <h3 class="panel-title">设置键值</h3>
           <el-form :inline="true" @submit.prevent>
             <el-form-item label="键名">
-              <el-input v-model="vkSetKey" placeholder="key" style="width:200px" />
+              <el-input v-model="vkSetKey" placeholder="key" style="width:200px" ></el-input>
             </el-form-item>
             <el-form-item label="值">
-              <el-input v-model="vkSetValue" placeholder="value" style="width:280px" />
+              <el-input v-model="vkSetValue" placeholder="value" style="width:280px" ></el-input>
             </el-form-item>
             <el-form-item label="过期(秒)">
-              <el-input-number v-model="vkSetTtl" :min="0" :max="999999" style="width:130px" />
+              <el-input-number v-model="vkSetTtl" :min="0" :max="999999" style="width:130px" ></el-input-number>
             </el-form-item>
             <el-form-item>
               <el-button type="primary" icon="el-icon-check" @click="doSet">设置</el-button>
@@ -107,7 +107,7 @@
               <el-input v-model="vkGetKey" placeholder="输入要查询的 key" style="width:300px"
                         @keyup.enter="doGet">
                 <template #append>
-                  <el-button icon="el-icon-search" @click="doGet" />
+                  <el-button icon="el-icon-search" @click="doGet" ></el-button>
                 </template>
               </el-input>
             </el-form-item>
@@ -133,7 +133,7 @@
             </el-descriptions>
           </div>
           <div v-else-if="vkQueried" class="vk-empty">
-            <el-alert title="键不存在" type="info" :closable="false" show-icon />
+            <el-alert title="键不存在" type="info" :closable="false" show-icon ></el-alert>
           </div>
         </div>
       </el-tab-pane>

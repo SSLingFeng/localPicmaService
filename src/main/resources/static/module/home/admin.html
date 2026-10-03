@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>首页内容管理</title>
   <link rel="stylesheet" href="/public/res/lib/element-plus@2.14.4_index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/md-editor-v3@5.6.0/lib/style.css">
   <link rel="stylesheet" href="/public/res/module/home/admin.css">
 </head>
 <body>
@@ -25,12 +26,12 @@
         <el-table-column label="最多显示条数" width="200">
           <template #default="{ row }">
             <el-input-number v-model="row.max_display" :min="1" :max="50" size="small"
-                             @change="saveConfig(row)" />
+                             @change="saveConfig(row)" ></el-input-number>
           </template>
         </el-table-column>
         <el-table-column label="启用" width="100" align="center">
           <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="saveConfig(row)" />
+            <el-switch v-model="row.enabled" @change="saveConfig(row)" ></el-switch>
           </template>
         </el-table-column>
       </el-table>
@@ -74,22 +75,25 @@
   </section>
 
   <!-- 编辑/新增弹窗 -->
-  <el-dialog :title="editMode === 'add' ? '新增内容' : '编辑内容'" v-model="editDlg" width="720px" top="6vh">
+  <el-dialog :title="editMode === 'add' ? '新增内容' : '编辑内容'" v-model="editDlg" width="900px" top="4vh">
     <el-form label-width="90px" size="small">
       <el-form-item label="标题">
-        <el-input v-model="editForm.title" placeholder="输入标题" maxlength="100" show-word-limit />
+        <el-input v-model="editForm.title" placeholder="输入标题" maxlength="100" show-word-limit ></el-input>
       </el-form-item>
       <el-form-item label="发布时间">
         <el-date-picker v-model="editForm.date_time" type="datetime"
                         format="YYYY/MM/DD HH:mm" value-format="YYYY-MM-DD HH:mm"
-                        placeholder="选择发布时间" style="width:100%" />
+                        placeholder="选择发布时间" style="width:100%" ></el-date-picker>
       </el-form-item>
       <el-form-item label="排序号">
-        <el-input-number v-model="editForm.order_num" :min="0" :max="9999" />
+        <el-input-number v-model="editForm.order_num" :min="0" :max="9999" ></el-input-number>
       </el-form-item>
       <el-form-item label="内容">
-        <el-input type="textarea" v-model="editForm.content" :rows="4"
-                  placeholder="输入具体内容" maxlength="2000" show-word-limit />
+        <md-editor v-if="mdReady" v-model="editForm.content" language="zh-CN"
+                   placeholder="支持 Markdown 格式书写，保存后首页将按 Markdown 渲染展示"
+                   style="height:360px"></md-editor>
+        <el-input v-else type="textarea" v-model="editForm.content" :rows="8"
+                  placeholder="（Markdown 组件未加载，纯文本模式）"></el-input>
       </el-form-item>
       <el-form-item label="上传图片">
         <el-upload ref="imageUpload" action="" :auto-upload="false" :show-file-list="false"
@@ -106,7 +110,7 @@
             <template #default="{ row, $index }">
               <el-input-number v-model="row.order_num" :min="0" :max="999" size="small"
                                controls-position="right" style="width:60px"
-                               @change="sortImages" />
+                               @change="sortImages" ></el-input-number>
             </template>
           </el-table-column>
           <el-table-column label="预览" width="80" align="center">
@@ -122,7 +126,7 @@
           </el-table-column>
           <el-table-column label="操作" width="80" align="center">
             <template #default="{ $index }">
-              <el-button size="small" type="danger" icon="el-icon-delete" @click="removeImage($index)" />
+              <el-button size="small" type="danger" icon="el-icon-delete" @click="removeImage($index)" ></el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -142,6 +146,7 @@
 <script src="/public/res/module/upload.js"></script>
 <script src="/public/res/lib/vue.global.prod.js"></script>
 <script src="/public/res/lib/element-plus@2.14.4_index.full.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/md-editor-v3@5.6.0/lib/umd/index.js"></script>
 <script src="https://unpkg.com/axios@1.7.9/dist/axios.min.js"></script>
 <script src="/public/res/module/home/admin.js"></script>
 <script>LoginModal.init();</script>

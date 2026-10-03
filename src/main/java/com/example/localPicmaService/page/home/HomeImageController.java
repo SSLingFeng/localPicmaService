@@ -44,20 +44,28 @@ public class HomeImageController {
             }
 
             byte[] imageBytes;
+            String contentType;
             if (webpAvailable) {
                 try {
                     imageBytes = encodeWebp(image);
+                    if (imageBytes.length == 0) {
+                        // 防御：编码器产出空数据也视为失败，走 PNG 降级
+                        throw new IllegalStateException("WebP 编码产出 0 字节");
+                    }
+                    contentType = "image/webp";
                 } catch (Exception e) {
                     log.warn("WebP 编码失败，降级为 PNG", e);
                     webpAvailable = false;
                     imageBytes = encodePng(image);
+                    contentType = "image/png";
                 }
             } else {
                 imageBytes = encodePng(image);
+                contentType = "image/png";
             }
 
             return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType("image/webp"))
+                    .contentType(MediaType.parseMediaType(contentType))
                     .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                     .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                     .body(imageBytes);
@@ -77,12 +85,16 @@ public class HomeImageController {
             throw new IllegalStateException("无 WebP 编码器");
         }
         var writer = writers.next();
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            var param = writer.getDefaultWriteParam();
-            writer.setOutput(ImageIO.createImageOutputStream(baos));
-            writer.write(null, new javax.imageio.IIOImage(rgb, null, null), param);
-            writer.dispose();
+        // 注意：ImageOutputStream 有内部缓冲，必须 flush 后数据才会写入底层流，
+        // 否则 toByteArray() 拿到 0 字节（响应 200 但 body 为空，前端图片全部加载失败）
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             javax.imageio.stream.ImageOutputStream ios = ImageIO.createImageOutputStream(baos)) {
+            writer.setOutput(ios);
+            writer.write(null, new javax.imageio.IIOImage(rgb, null, null), writer.getDefaultWriteParam());
+            ios.flush();
             return baos.toByteArray();
+        } finally {
+            writer.dispose();
         }
     }
 

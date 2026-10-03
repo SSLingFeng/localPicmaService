@@ -514,7 +514,9 @@ public class SqlUtil {
             String[] parts = inner.split("\\|");
 
             String paramName = parts[parts.length - 1].trim();
-            Integer paramType = parts.length > 1 ? getSqlType(parts[0].trim()) : null;
+            // 类型留空（{?|name?}）等同未指定类型（{?name?}），由 setObject 自动判断
+            String typeStr = parts.length > 1 ? parts[0].trim() : "";
+            Integer paramType = typeStr.isEmpty() ? null : getSqlType(typeStr);
 
             params.add(new ParamMeta(paramType, paramName));
             result.append('?');

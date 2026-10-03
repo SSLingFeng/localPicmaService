@@ -24,6 +24,7 @@
     .status-1 { background: #67c23a; }
     .status-2 { background: #f56c6c; }
     .el-table { --el-table-bg-color: #111122; --el-table-tr-bg-color: #111122; --el-table-header-bg-color: #171730; --el-table-border-color: #252545; --el-table-text-color: #e8e4dc; --el-table-header-text-color: #6b6580; --el-table-row-hover-bg-color: #1a1a30; }
+    .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell { background: #15152a!important; }
     .back-fab { position: fixed; bottom: 24px; right: 24px; display: flex; align-items: center; gap: 6px; padding: 10px 18px; background: #171730; border: 1px solid #252545; border-radius: 10px; color: #6b6580; text-decoration: none; font-size: 13px; }
     .back-fab:hover { border-color: #d4a853; color: #d4a853; }
     .config-preview { background: #090912; border: 1px solid #252545; border-radius: 4px; padding: 12px; font-family: monospace; font-size: 12px; color: #6b6580; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
@@ -59,7 +60,7 @@
             {{ row.connect_status === 1 ? '正常' : row.connect_status === 2 ? '异常' : '未知' }}
           </template>
         </el-table-column>
-        <el-table-column prop="client_name" label="名称" min-width="120" />
+        <el-table-column prop="client_name" label="名称" min-width="120"></el-table-column>
         <el-table-column label="服务端地址" min-width="150">
           <template #default="{ row }">{{ row.server_addr }}:{{ row.server_port }}</template>
         </el-table-column>
@@ -94,13 +95,13 @@
         <h3>代理规则列表</h3>
         <div style="display:flex;gap:8px;align-items:center">
           <el-select v-model="proxyFilter" placeholder="筛选客户端" clearable size="small" style="width:200px" @change="loadProxies">
-            <el-option v-for="c in clients" :key="c.id" :label="c.client_name" :value="c.id" />
+            <el-option v-for="c in clients" :key="c.id" :label="c.client_name" :value="c.id" ></el-option>
           </el-select>
           <el-button type="primary" size="small" @click="openProxyDialog(null)">新增代理</el-button>
         </div>
       </div>
       <el-table :data="filteredProxies" stripe size="small" v-loading="proxyLoading" empty-text="暂无代理规则">
-        <el-table-column prop="proxy_name" label="名称" min-width="120" />
+        <el-table-column prop="proxy_name" label="名称" min-width="120"></el-table-column>
         <el-table-column label="客户端" min-width="120">
           <template #default="{ row }">{{ row.client_name || '未知' }}</template>
         </el-table-column>
@@ -120,7 +121,7 @@
         </el-table-column>
         <el-table-column label="状态" width="80" align="center">
           <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="toggleProxy(row)" />
+            <el-switch v-model="row.enabled" @change="toggleProxy(row)" ></el-switch>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="160" align="center" fixed="right">
@@ -136,46 +137,74 @@
   <!-- ==================== 客户端编辑弹窗 ==================== -->
   <el-dialog :title="clientForm.id ? '编辑客户端' : '新增客户端'" v-model="clientDialogVisible" width="600px">
     <el-form label-width="100px" size="small">
+      <el-form-item label="导入配置">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <el-button size="small" type="warning" plain @click="triggerImportFile">导入 JSON 配置文件</el-button>
+          <span v-if="importedProxies.length" style="font-size:12px;color:#d4a853">已识别 {{ importedProxies.length }} 条代理规则，保存时自动录入</span>
+          <span v-else style="font-size:11px;color:#6b6580">支持 frpc 的 JSON 配置，自动填充服务端连接、认证、WebServer 字段</span>
+        </div>
+        <input ref="importFile" type="file" accept=".json,application/json" style="display:none" @change="onImportFileChange" />
+      </el-form-item>
       <el-form-item label="客户端名称">
-        <el-input v-model="clientForm.client_name" placeholder="如：公司电脑、家里NAS" />
+        <el-input v-model="clientForm.client_name" placeholder="如：公司电脑、家里NAS" ></el-input>
       </el-form-item>
       <el-form-item label="客户端ID">
-        <el-input v-model="clientForm.client_id" placeholder="可选，frpc 客户端标识" />
+        <el-input v-model="clientForm.client_id" placeholder="可选，frpc 客户端标识" ></el-input>
       </el-form-item>
       <el-divider content-position="left">服务端连接</el-divider>
       <el-form-item label="服务端地址">
-        <el-input v-model="clientForm.server_addr" placeholder="IP 或域名" />
+        <el-input v-model="clientForm.server_addr" placeholder="IP 或域名" ></el-input>
       </el-form-item>
       <el-form-item label="服务端端口">
-        <el-input-number v-model="clientForm.server_port" :min="1" :max="65535" />
+        <el-input-number v-model="clientForm.server_port" :min="1" :max="65535" ></el-input-number>
       </el-form-item>
       <el-form-item label="认证Token">
-        <el-input v-model="clientForm.auth_token" placeholder="服务端认证 Token" show-password />
+        <el-input v-model="clientForm.auth_token" placeholder="服务端认证 Token" show-password ></el-input>
       </el-form-item>
       <el-form-item label="登录失败退出">
-        <el-switch v-model="clientForm.login_fail_exit" />
+        <el-switch v-model="clientForm.login_fail_exit" ></el-switch>
       </el-form-item>
       <el-divider content-position="left">WebServer 管理</el-divider>
       <el-form-item label="管理端口">
-        <el-input-number v-model="clientForm.web_server_port" :min="0" :max="65535" />
+        <el-input-number v-model="clientForm.web_server_port" :min="0" :max="65535" ></el-input-number>
         <div style="font-size:11px;color:#6b6580;margin-top:2px">0 表示未开启</div>
       </el-form-item>
       <el-form-item label="管理地址">
-        <el-input v-model="clientForm.web_server_addr" placeholder="127.0.0.1" />
+        <el-input v-model="clientForm.web_server_addr" placeholder="127.0.0.1" ></el-input>
       </el-form-item>
       <el-form-item label="用户名">
-        <el-input v-model="clientForm.web_server_user" placeholder="WebServer 用户名" />
+        <el-input v-model="clientForm.web_server_user" placeholder="WebServer 用户名" ></el-input>
       </el-form-item>
       <el-form-item label="密码">
-        <el-input v-model="clientForm.web_server_pass" placeholder="WebServer 密码" show-password />
+        <el-input v-model="clientForm.web_server_pass" placeholder="WebServer 密码" show-password ></el-input>
       </el-form-item>
       <el-divider content-position="left">配置文件</el-divider>
       <el-form-item label="配置路径">
-        <el-input v-model="clientForm.config_path" :placeholder="frpBasePath ? '相对于 ' + frpBasePath : '相对路径/文件名'" />
+        <el-input v-model="clientForm.config_path" :placeholder="frpBasePath ? '相对于 ' + frpBasePath : '相对路径/文件名'" ></el-input>
         <div v-if="frpBasePath" style="font-size:11px;color:#6b6580;margin-top:2px">基础路径: {{ frpBasePath }}</div>
       </el-form-item>
+      <el-form-item v-if="importedProxies.length" label="待导入代理">
+        <el-table :data="importedProxies" size="small" style="width:100%">
+          <el-table-column prop="proxy_name" label="名称" min-width="100"></el-table-column>
+          <el-table-column prop="proxy_type" label="类型" width="70" align="center"></el-table-column>
+          <el-table-column label="本地地址" min-width="120">
+            <template #default="{ row }">{{ row.local_ip }}:{{ row.local_port }}</template>
+          </el-table-column>
+          <el-table-column label="远程端口" width="90" align="center">
+            <template #default="{ row }">{{ row.remote_port || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="密钥" width="90" align="center">
+            <template #default="{ row }">{{ row.secret_key || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="70" align="center">
+            <template #default="{ $index }">
+              <el-button size="small" type="danger" @click="importedProxies.splice($index, 1)">移除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-form-item>
       <el-form-item label="备注">
-        <el-input type="textarea" v-model="clientForm.remark" :rows="2" />
+        <el-input type="textarea" v-model="clientForm.remark" :rows="2" ></el-input>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -189,36 +218,36 @@
     <el-form label-width="90px" size="small">
       <el-form-item label="所属客户端">
         <el-select v-model="proxyForm.client_id" placeholder="选择客户端" style="width:100%">
-          <el-option v-for="c in clients" :key="c.id" :label="c.client_name + ' (' + c.server_addr + ')'" :value="c.id" />
+          <el-option v-for="c in clients" :key="c.id" :label="c.client_name + ' (' + c.server_addr + ')'" :value="c.id" ></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="代理名称">
-        <el-input v-model="proxyForm.proxy_name" placeholder="唯一名称，如 SSH、MC" />
+        <el-input v-model="proxyForm.proxy_name" placeholder="唯一名称，如 SSH、MC" ></el-input>
       </el-form-item>
       <el-form-item label="类型">
         <el-select v-model="proxyForm.proxy_type" style="width:100%">
-          <el-option label="TCP" value="TCP" />
-          <el-option label="UDP" value="UDP" />
-          <el-option label="STCP" value="STCP" />
-          <el-option label="XTCP" value="XTCP" />
-          <el-option label="HTTP" value="HTTP" />
-          <el-option label="HTTPS" value="HTTPS" />
+          <el-option label="TCP" value="TCP" ></el-option>
+          <el-option label="UDP" value="UDP" ></el-option>
+          <el-option label="STCP" value="STCP" ></el-option>
+          <el-option label="XTCP" value="XTCP" ></el-option>
+          <el-option label="HTTP" value="HTTP" ></el-option>
+          <el-option label="HTTPS" value="HTTPS" ></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="本地IP">
-        <el-input v-model="proxyForm.local_ip" placeholder="127.0.0.1" />
+        <el-input v-model="proxyForm.local_ip" placeholder="127.0.0.1" ></el-input>
       </el-form-item>
       <el-form-item label="本地端口">
-        <el-input-number v-model="proxyForm.local_port" :min="1" :max="65535" />
+        <el-input-number v-model="proxyForm.local_port" :min="1" :max="65535" ></el-input-number>
       </el-form-item>
       <el-form-item label="远程端口" v-if="!['STCP','XTCP'].includes(proxyForm.proxy_type)">
-        <el-input-number v-model="proxyForm.remote_port" :min="1" :max="65535" />
+        <el-input-number v-model="proxyForm.remote_port" :min="1" :max="65535" ></el-input-number>
       </el-form-item>
       <el-form-item label="密钥" v-if="['STCP','XTCP'].includes(proxyForm.proxy_type)">
-        <el-input v-model="proxyForm.secret_key" placeholder="STCP/XTCP 密钥" />
+        <el-input v-model="proxyForm.secret_key" placeholder="STCP/XTCP 密钥" ></el-input>
       </el-form-item>
       <el-form-item label="备注">
-        <el-input type="textarea" v-model="proxyForm.remark" :rows="2" />
+        <el-input type="textarea" v-model="proxyForm.remark" :rows="2" ></el-input>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -230,7 +259,7 @@
   <!-- ==================== 配置预览弹窗 ==================== -->
   <el-dialog title="生成的 FRP 配置" v-model="configDialogVisible" width="700px">
     <div v-if="configResult">
-      <el-alert :title="configResult.message" :type="configResult.path ? 'success' : 'info'" :closable="false" style="margin-bottom:12px" />
+      <el-alert :title="configResult.message" :type="configResult.path ? 'success' : 'info'" :closable="false" style="margin-bottom:12px" ></el-alert>
       <div class="config-preview">{{ configResult.config }}</div>
     </div>
     <template #footer>
@@ -263,6 +292,9 @@ Vue.createApp({
       clientDialogVisible: false,
       clientSaving: false,
       clientForm: { id: null, client_id: '', client_name: '', server_addr: '', server_port: 7000, login_fail_exit: false, auth_token: '', web_server_addr: '127.0.0.1', web_server_port: 0, web_server_user: '', web_server_pass: '', config_path: '', remark: '' },
+
+      /* JSON 配置导入 */
+      importedProxies: [],
 
       /* 代理规则 */
       proxies: [],
@@ -312,12 +344,121 @@ Vue.createApp({
       }).finally(function () { self.clientLoading = false; });
     },
     openClientDialog: function (client) {
+      this.importedProxies = [];
       if (client) {
-        this.clientForm = { id: client.id, client_id: client.client_id || '', client_name: client.client_name, server_addr: client.server_addr, server_port: client.server_port, login_fail_exit: client.login_fail_exit, auth_token: '', web_server_addr: client.web_server_addr || '127.0.0.1', web_server_port: client.web_server_port || 0, web_server_user: client.web_server_user || '', web_server_pass: '', config_path: client.config_path || '', remark: client.remark || '' };
+        this.clientForm = { id: client.id, client_id: client.client_id || '', client_name: client.client_name, server_addr: client.server_addr, server_port: client.server_port, login_fail_exit: (client.login_fail_exit === 1 || client.login_fail_exit === true), auth_token: '', web_server_addr: client.web_server_addr || '127.0.0.1', web_server_port: client.web_server_port || 0, web_server_user: client.web_server_user || '', web_server_pass: '', config_path: client.config_path || '', remark: client.remark || '' };
       } else {
         this.clientForm = { id: null, client_id: '', client_name: '', server_addr: '', server_port: 7000, login_fail_exit: false, auth_token: '', web_server_addr: '127.0.0.1', web_server_port: 0, web_server_user: '', web_server_pass: '', config_path: '', remark: '' };
       }
       this.clientDialogVisible = true;
+    },
+    /* ====== JSON 配置导入 ====== */
+    triggerImportFile: function () {
+      var input = this.$refs.importFile;
+      if (!input) return;
+      input.value = '';
+      input.click();
+    },
+    onImportFileChange: function (ev) {
+      var self = this;
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var text = String(e.target.result || '').replace(/^\uFEFF/, '');
+        var cfg;
+        try { cfg = JSON.parse(text); }
+        catch (err) { ElMessage.error('JSON 解析失败: ' + err.message); return; }
+        self.applyImportedConfig(cfg, file.name);
+      };
+      reader.readAsText(file, 'utf-8');
+    },
+    pickField: function (obj, keys) {
+      if (!obj) return undefined;
+      for (var i = 0; i < keys.length; i++) {
+        var v = obj[keys[i]];
+        if (v !== undefined && v !== null && v !== '') return v;
+      }
+      return undefined;
+    },
+    applyImportedConfig: function (cfg, fileName) {
+      var self = this;
+      var f = this.clientForm;
+      if (!fileName) fileName = '';
+
+      /* 客户端基本信息 */
+      if (!f.client_name && fileName) f.client_name = fileName.replace(/\.json$/i, '');
+      var cid = this.pickField(cfg, ['clientID', 'clientId', 'client_id']);
+      if (cid !== undefined) f.client_id = String(cid);
+      if (!f.config_path && fileName) f.config_path = fileName;
+
+      /* 服务端连接 + 认证 */
+      var addr = this.pickField(cfg, ['serverAddr', 'server_addr']);
+      var port = this.pickField(cfg, ['serverPort', 'server_port']);
+      var auth = (cfg.auth && typeof cfg.auth === 'object') ? cfg.auth : {};
+      var token = this.pickField(auth, ['token']);
+      var lfe = this.pickField(cfg, ['loginFailExit', 'login_fail_exit']);
+      if (addr !== undefined) f.server_addr = String(addr);
+      if (port !== undefined) f.server_port = Number(port) || 7000;
+      if (token !== undefined) f.auth_token = String(token);
+      if (lfe !== undefined) f.login_fail_exit = (lfe === true || lfe === 'true' || lfe === 1);
+
+      /* WebServer 管理 */
+      var ws = (cfg.webServer && typeof cfg.webServer === 'object') ? cfg.webServer : {};
+      var wsa = this.pickField(ws, ['addr', 'address']);
+      var wsp = this.pickField(ws, ['port']);
+      var wsu = this.pickField(ws, ['user']);
+      var wspass = this.pickField(ws, ['password', 'pass']);
+      if (wsa !== undefined) f.web_server_addr = String(wsa);
+      if (wsp !== undefined) f.web_server_port = Number(wsp) || 0;
+      if (wsu !== undefined) f.web_server_user = String(wsu);
+      if (wspass !== undefined) f.web_server_pass = String(wspass);
+
+      /* 代理规则 */
+      var rawList = Array.isArray(cfg.proxies) ? cfg.proxies : [];
+      this.importedProxies = rawList.map(function (p) {
+        var type = String(self.pickField(p, ['type', 'proxy_type']) || 'tcp').toUpperCase();
+        return {
+          proxy_name: String(self.pickField(p, ['name', 'proxy_name']) || ''),
+          proxy_type: type,
+          local_ip: String(self.pickField(p, ['localIP', 'local_ip']) || '127.0.0.1'),
+          local_port: Number(self.pickField(p, ['localPort', 'local_port']) || 0),
+          remote_port: Number(self.pickField(p, ['remotePort', 'remote_port']) || 0),
+          secret_key: String(self.pickField(p, ['secretKey', 'secret_key']) || ''),
+          custom_domains: self.pickField(p, ['customDomains', 'custom_domains']) || [],
+          remark: ''
+        };
+      }).filter(function (p) { return p.proxy_name && p.local_port > 0; });
+
+      var msg = '配置已导入，表单已自动填充';
+      if (this.importedProxies.length) msg += '（识别到 ' + this.importedProxies.length + ' 条代理规则）';
+      ElMessage.success(msg);
+    },
+    importProxies: function (ownerId, done) {
+      var self = this;
+      var pending = this.importedProxies.slice();
+      var okCnt = 0, failCnt = 0;
+      var next = function () {
+        if (!pending.length) { done(okCnt, failCnt); return; }
+        var p = pending.shift();
+        var body = Object.assign({}, p, { client_id: ownerId });
+        axios.post(BASE + '/proxy/add', body).then(function (res) {
+          if (res.data && res.data.success) okCnt++; else failCnt++;
+        }).catch(function () { failCnt++; }).finally(function () { next(); });
+      };
+      next();
+    },
+    finishClientSave: function (okCnt, failCnt) {
+      var self = this;
+      var msg = self.clientForm.id ? '已更新' : '已新增';
+      if (okCnt > 0) msg += '，代理规则导入 ' + okCnt + ' 条';
+      if (failCnt > 0) msg += '（' + failCnt + ' 条失败）';
+      ElMessage.success(msg);
+      self.clientSaving = false;
+      self.clientDialogVisible = false;
+      self.importedProxies = [];
+      self.loadClients();
+      self.loadProxies();
     },
     saveClient: function () {
       var self = this;
@@ -325,9 +466,23 @@ Vue.createApp({
       self.clientSaving = true;
       var url = self.clientForm.id ? BASE + '/client/update' : BASE + '/client/add';
       axios.post(url, self.clientForm).then(function (res) {
-        if (res.data.success) { ElMessage.success(self.clientForm.id ? '已更新' : '已新增'); self.clientDialogVisible = false; self.loadClients(); }
-        else ElMessage.error(res.data.error || '操作失败');
-      }).catch(function () { ElMessage.error('请求失败'); }).finally(function () { self.clientSaving = false; });
+        if (!res.data.success) { ElMessage.error(res.data.error || '操作失败'); self.clientSaving = false; return; }
+        var ownerId = self.clientForm.id || res.data.id;
+        if (self.importedProxies.length && ownerId) {
+          var runImport = function () {
+            self.importProxies(ownerId, function (okCnt, failCnt) { self.finishClientSave(okCnt, failCnt); });
+          };
+          if (self.clientForm.id) {
+            ElMessageBox.confirm('将向该客户端新增 ' + self.importedProxies.length + ' 条代理规则，是否继续？', '导入确认', { type: 'info' })
+              .then(runImport)
+              .catch(function () { self.finishClientSave(0, 0); });
+          } else {
+            runImport();
+          }
+        } else {
+          self.finishClientSave(0, 0);
+        }
+      }).catch(function () { ElMessage.error('请求失败'); self.clientSaving = false; });
     },
     deleteClient: function (client) {
       var self = this;
@@ -366,7 +521,14 @@ Vue.createApp({
       var params = {};
       if (self.proxyFilter) params.clientId = self.proxyFilter;
       axios.get(BASE + '/proxy/list', { params: params }).then(function (res) {
-        if (res.data.success) self.proxies = res.data.items || [];
+        if (res.data.success) {
+          // SqlUtil 返回 boolean 为 int(0/1)，必须归一化为真布尔：
+          // 否则 el-switch 视为非法值（1 !== true），显示为关，且会自动触发一次 change 调 /proxy/toggle
+          self.proxies = (res.data.items || []).map(function (p) {
+            p.enabled = (p.enabled === 1 || p.enabled === true || p.enabled === 'true');
+            return p;
+          });
+        }
       }).finally(function () { self.proxyLoading = false; });
     },
     openProxyDialog: function (proxy) {
@@ -388,8 +550,15 @@ Vue.createApp({
       }).catch(function () { ElMessage.error('请求失败'); }).finally(function () { self.proxySaving = false; });
     },
     toggleProxy: function (proxy) {
+      var self = this;
       axios.post(BASE + '/proxy/toggle', { id: proxy.id }).then(function (res) {
         if (res.data.success) ElMessage.success('状态已切换');
+        else ElMessage.error(res.data.error || '切换失败');
+      }).catch(function () {
+        ElMessage.error('请求失败');
+      }).finally(function () {
+        // 无论成败都重拉列表，以数据库为准，避免开关状态与实际值漂移
+        self.loadProxies();
       });
     },
     deleteProxy: function (proxy) {

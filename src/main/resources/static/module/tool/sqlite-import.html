@@ -35,12 +35,12 @@
       </el-form-item>
       <el-form-item label="类型">
         <el-select v-model="form.type" placeholder="选择类型" style="width:200px">
-          <el-option label="漫画" value="漫画" />
-          <el-option label="Coser" value="coser" />
+          <el-option label="漫画" value="漫画" ></el-option>
+          <el-option label="Coser" value="coser" ></el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="路径">
-        <el-input v-model="form.path" placeholder="如 20250610" style="width:200px" />
+        <el-input v-model="form.path" placeholder="如 20250610" style="width:200px" ></el-input>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :disabled="status.running || !form.file" @click="startImport">

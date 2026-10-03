@@ -78,17 +78,17 @@
         <el-table-column label="值" min-width="300">
           <template #default="{ row }">
             <div v-if="row.type === 'boolean'" class="value-cell">
-              <el-switch v-model="row.value" />
+              <el-switch v-model="row.value" ></el-switch>
               <span style="font-size:12px;color:#6b6580">{{ row.value }}</span>
             </div>
             <div v-else-if="row.type === 'int'" class="value-cell">
-              <el-input-number v-model="row.value" :min="0" size="small" controls-position="right" />
+              <el-input-number v-model="row.value" :min="0" size="small" controls-position="right" ></el-input-number>
             </div>
             <div v-else-if="row.type === 'Path'" class="value-cell">
-              <el-input v-model="row.value" size="small" placeholder="输入路径" />
+              <el-input v-model="row.value" size="small" placeholder="输入路径" ></el-input>
             </div>
             <div v-else class="value-cell">
-              <el-input v-model="row.value" size="small" placeholder="输入值" />
+              <el-input v-model="row.value" size="small" placeholder="输入值" ></el-input>
             </div>
           </template>
         </el-table-column>
@@ -112,16 +112,16 @@
       <!-- 搜索栏 -->
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
         <el-input v-model="fileSearchKeyword" placeholder="搜索文件名..." clearable prefix-icon="el-icon-search"
-                  size="small" style="width:250px" @keyup.enter="onFileSearch" @clear="onFileSearch" />
+                  size="small" style="width:250px" @keyup.enter="onFileSearch" @clear="onFileSearch" ></el-input>
         <el-select v-model="fileSearchFormat" placeholder="全部格式" clearable size="small" style="width:130px" @change="onFileSearch">
-          <el-option label="全部" value="" />
-          <el-option label="JPG" value="jpg" />
-          <el-option label="JPEG" value="jpeg" />
-          <el-option label="PNG" value="png" />
-          <el-option label="WebP" value="webp" />
-          <el-option label="GIF" value="gif" />
-          <el-option label="MP4" value="mp4" />
-          <el-option label="PDF" value="pdf" />
+          <el-option label="全部" value="" ></el-option>
+          <el-option label="JPG" value="jpg" ></el-option>
+          <el-option label="JPEG" value="jpeg" ></el-option>
+          <el-option label="PNG" value="png" ></el-option>
+          <el-option label="WebP" value="webp" ></el-option>
+          <el-option label="GIF" value="gif" ></el-option>
+          <el-option label="MP4" value="mp4" ></el-option>
+          <el-option label="PDF" value="pdf" ></el-option>
         </el-select>
         <el-button size="small" type="primary" icon="el-icon-search" @click="onFileSearch">搜索</el-button>
         <el-button size="small" icon="el-icon-refresh-left" @click="resetFileSearch">重置</el-button>
@@ -131,10 +131,10 @@
                 style="width:100%">
         <el-table-column label="选择" width="55" align="center">
           <template #header>
-            <el-checkbox v-model="allFilesSelected" @change="toggleAllFiles" />
+            <el-checkbox v-model="allFilesSelected" @change="toggleAllFiles" ></el-checkbox>
           </template>
           <template #default="{ row }">
-            <el-checkbox v-model="row._selected" @change="onFileCheckChange" />
+            <el-checkbox v-model="row._selected" @change="onFileCheckChange" ></el-checkbox>
           </template>
         </el-table-column>
         <el-table-column label="文件名" min-width="150">
@@ -172,7 +172,7 @@
       <div v-if="fileTotal > 0" style="margin-top:16px;display:flex;justify-content:center">
         <el-pagination background layout="prev, pager, next"
                        :total="fileTotal" :page-size="filePageSize" :current-page="filePage"
-                       @current-change="onFilePageChange" />
+                       @current-change="onFilePageChange" ></el-pagination>
       </div>
     </div>
   </div>

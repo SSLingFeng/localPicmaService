@@ -2,7 +2,7 @@
    MAIN VUE APP
    ============================================= */
 
-Vue.createApp({
+var app = Vue.createApp({
 
   data: function () {
     return {
@@ -32,7 +32,11 @@ Vue.createApp({
       activeSection: 'home',
       isScrolled:    false,
       activeProject: '',
-      year: new Date().getFullYear()
+      year: new Date().getFullYear(),
+
+      /* 详情弹窗（游戏/生活） */
+      detail: { visible: false, title: '', images: [], content: '' },
+      mdReady: !!(window.MdEditorV3 && MdEditorV3.MdPreview)
     };
   },
 
@@ -52,6 +56,16 @@ Vue.createApp({
   },
 
   methods: {
+    /* -------- 详情弹窗 -------- */
+    openDetail: function (item, type) {
+      this.detail = {
+        visible: true,
+        title: item.title || '（无标题）',
+        images: item.images || [],
+        content: (type === 'game' ? (item.description || '') : (item.content || ''))
+      };
+    },
+
     /* -------- Data Fetching -------- */
     fetchAll: function () {
       var self = this;
@@ -156,4 +170,13 @@ Vue.createApp({
       });
     }
   }
-}).use(ElementPlus).mount('#app');
+});
+
+/* Markdown 预览组件（依赖 CDN 加载成功；失败时弹窗降级为纯文本） */
+if (window.MdEditorV3 && MdEditorV3.MdPreview) {
+  app.component('md-preview', MdEditorV3.MdPreview);
+} else {
+  console.warn('[HomePage] md-editor-v3 未加载，详情弹窗将显示纯文本');
+}
+
+app.use(ElementPlus).mount('#app');

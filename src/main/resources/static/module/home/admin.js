@@ -5,7 +5,7 @@
     var ElMessageBox = ElementPlus.ElMessageBox;
     var BASE = '/home/admin/api';
 
-    Vue.createApp({
+    var app = Vue.createApp({
 
         data: function () {
             return {
@@ -33,7 +33,10 @@
                 uploading: false,
 
                 // 配置加载守卫
-                configsReady: false
+                configsReady: false,
+
+                // Markdown 编辑器就绪（CDN 加载成功时）
+                mdReady: !!(window.MdEditorV3 && MdEditorV3.MdEditor)
             };
         },
 
@@ -57,7 +60,12 @@
                 self.configsReady = false;
                 axios.get(BASE + '/configs').then(function (res) {
                     var d = res.data;
-                    self.configs = d.success ? (d.items || []) : [];
+                    var items = d.success ? (d.items || []) : [];
+                    // SqlUtil 返回 boolean 为 int(0/1)，归一化为真布尔，避免 el-switch 显示反转
+                    items.forEach(function (c) {
+                        c.enabled = (c.enabled === 1 || c.enabled === true || c.enabled === 'true');
+                    });
+                    self.configs = items;
                     self.$nextTick(function () {
                         self.configsReady = true;
                     });
@@ -247,6 +255,15 @@
                     + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
             }
         }
-    }).use(ElementPlus).mount('#app');
+    });
+
+    /* Markdown 编辑器组件（CDN 加载失败时降级为纯文本 textarea） */
+    if (window.MdEditorV3 && MdEditorV3.MdEditor) {
+        app.component('md-editor', MdEditorV3.MdEditor);
+    } else {
+        console.warn('[home-admin] md-editor-v3 未加载，内容输入降级为纯文本');
+    }
+
+    app.use(ElementPlus).mount('#app');
 
 })(Vue, axios, ElementPlus);
